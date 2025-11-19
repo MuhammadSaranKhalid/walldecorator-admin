@@ -51,7 +51,30 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const isLoginPage = request.nextUrl.pathname === "/login";
+  const isAdminRoute = request.nextUrl.pathname.startsWith("/admin");
+
+  // If user is logged in and trying to access login page, redirect to admin
+  if (user && isLoginPage) {
+    return NextResponse.redirect(new URL("/admin", request.url));
+  }
+
+  // If user is not logged in and trying to access admin routes, redirect to login
+  if (!user && isAdminRoute) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  // If user is logged in and accessing root, redirect to admin
+  if (user && request.nextUrl.pathname === "/") {
+    return NextResponse.redirect(new URL("/admin", request.url));
+  }
+
+  // If user is not logged in and accessing root, redirect to login
+  if (!user && request.nextUrl.pathname === "/") {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
 
   return response;
 }
