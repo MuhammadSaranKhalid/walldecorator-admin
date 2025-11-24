@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { ArrowLeft, Package, Truck, MapPin, CreditCard, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -122,9 +123,11 @@ export function OrderDetailView({ order: initialOrder }: OrderDetailViewProps) {
                 {order.order_items?.map((item) => (
                   <div key={item.id} className="flex gap-4 pb-4 border-b last:border-0 last:pb-0">
                     {item.product?.primary_image_url && (
-                      <img
+                      <Image
                         src={item.product.primary_image_url}
                         alt={item.product_name}
+                        width={64}
+                        height={64}
                         className="w-16 h-16 object-cover rounded"
                       />
                     )}

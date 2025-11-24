@@ -67,7 +67,7 @@ export default function AdminDashboard() {
             Dashboard Overview
           </h1>
           <p className="text-muted-foreground text-base">
-            Here's a summary of your store's performance.
+            Here&apos;s a summary of your store&apos;s performance.
           </p>
         </div>
         <Link href="/admin/products">
