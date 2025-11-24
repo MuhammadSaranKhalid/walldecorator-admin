@@ -1,6 +1,6 @@
 import Link from "next/link";
-import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { BlurhashImage } from "@/components/ui/blurhash-image";
 
 interface ProductCardProps {
   id: string;
@@ -8,19 +8,40 @@ interface ProductCardProps {
   material: string;
   price: number;
   image_url: string;
+  blurhash?: string;
   className?: string;
+  // Image variant URLs for responsive loading
+  thumbnailUrl?: string;
+  mediumUrl?: string;
+  largeUrl?: string;
 }
 
-export function ProductCard({ id, name, material, price, image_url, className }: ProductCardProps) {
+export function ProductCard({
+  id,
+  name,
+  material,
+  price,
+  image_url,
+  blurhash,
+  className,
+  thumbnailUrl,
+  mediumUrl,
+  largeUrl,
+}: ProductCardProps) {
   return (
     <Link href={`/products/${id}`} className={cn("flex flex-col gap-3 group", className)}>
       <div className="relative w-full overflow-hidden rounded-lg aspect-[3/4] bg-muted">
-        <Image
+        <BlurhashImage
           src={image_url}
           alt={name}
+          blurhash={blurhash}
+          thumbnailUrl={thumbnailUrl}
+          mediumUrl={mediumUrl}
+          largeUrl={largeUrl}
+          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
           fill
-          className="object-cover transition-transform duration-300 group-hover:scale-105"
-          sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+          className="w-full h-full transition-transform duration-300 group-hover:scale-105"
+          objectFit="cover"
         />
       </div>
       <div>

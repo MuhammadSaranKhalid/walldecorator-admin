@@ -11,8 +11,20 @@ import {
   LogOut,
   Grid3x3,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarRail,
+} from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
 
 const navigation = [
   { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
@@ -31,63 +43,63 @@ export function AdminSidebar() {
   };
 
   return (
-    <aside className="flex w-64 flex-col bg-card p-4 border-r">
+    <Sidebar collapsible="icon" variant="inset">
       {/* Logo */}
-      <div className="flex items-center gap-3 p-3 mb-4">
-        <Grid3x3 className="h-8 w-8 text-primary" />
-        <h1 className="text-xl font-bold">DecorAdmin</h1>
-      </div>
-
-      <div className="flex flex-col grow justify-between">
-        {/* Navigation */}
-        <nav className="flex flex-col gap-2">
-          {navigation.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(item.href);
-
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
-                  active
-                    ? "bg-primary/20 text-primary font-medium"
-                    : "hover:bg-accent text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <Icon className="h-5 w-5" />
-                <p className="text-sm font-medium">{item.name}</p>
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Bottom Section */}
-        <div className="flex flex-col gap-4">
-          <div className="border-t pt-4">
-            <button className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors w-full">
-              <LogOut className="h-5 w-5" />
-              <p className="text-sm font-medium">Logout</p>
-            </button>
-          </div>
-
-          {/* User Profile */}
-          <div className="flex gap-3 items-center">
-            <Avatar>
-              <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=admin" />
-              <AvatarFallback>AG</AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col">
-              <h1 className="text-base font-medium leading-normal">Alex Grim</h1>
-              <p className="text-sm text-muted-foreground leading-normal">
-                admin@decor.com
-              </p>
-            </div>
-          </div>
+      <SidebarHeader>
+        <div className="flex items-center gap-3 px-2 py-2">
+          <h1 className="text-xl font-bold group-data-[collapsible=icon]:hidden">
+            WallDecorator
+          </h1>
         </div>
-      </div>
-    </aside>
+      </SidebarHeader>
+
+      {/* Navigation */}
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {navigation.map((item) => {
+                const Icon = item.icon;
+                const active = isActive(item.href);
+
+                return (
+                  <SidebarMenuItem key={item.name}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={active}
+                      className={active ? "bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary" : ""}
+                    >
+                      <Link href={item.href}>
+                        <Icon className="h-5 w-5" />
+                        <span className="text-sm font-medium">{item.name}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      {/* Bottom Section */}
+      <SidebarFooter>
+        <SidebarMenu>
+          {/* Logout Button */}
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild>
+              <button className="w-full">
+                <LogOut className="h-5 w-5" />
+                <span className="text-sm font-medium">Logout</span>
+              </button>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+
+        </SidebarMenu>
+      </SidebarFooter>
+
+      <SidebarRail />
+    </Sidebar>
   );
 }
 

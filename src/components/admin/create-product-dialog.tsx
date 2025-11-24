@@ -109,6 +109,15 @@ interface ProductImage {
   url: string;
   file?: File;
   isPrimary: boolean;
+  blurhash?: string;
+  isUploading?: boolean;
+  uploadedUrl?: string; // Original Supabase storage URL
+  thumbnailUrl?: string; // 400x400 variant
+  mediumUrl?: string; // 800x800 variant
+  largeUrl?: string; // 1200x1200 variant
+  width?: number;
+  height?: number;
+  fileSize?: number;
 }
 
 type FormValues = z.infer<typeof formSchema>;
@@ -409,93 +418,81 @@ export function CreateProductDialog({
   });
 
   const onSubmit = async (values: FormValues) => {
+    console.log("=== Product Submission Started ===");
+    console.log("Mode:", isEditMode ? "EDIT" : "CREATE");
+    console.log("Product ID:", productId);
+    console.log("Form Values:", values);
+    console.log("Product Images Count:", productImages.length);
+
     setIsSubmitting(true);
     try {
       if (productImages.length === 0) {
+        console.error("❌ Validation failed: No images uploaded");
         toast.error("Please upload at least one product image");
         setIsSubmitting(false);
         return;
       }
 
-      // Upload all images to Supabase Storage
+      console.log("✓ Validation passed");
+
+      // Check if any images are still uploading
+      const stillUploading = productImages.some((img) => img.isUploading);
+      if (stillUploading) {
+        console.warn("⚠️  Some images are still uploading");
+        toast.error("Please wait for all images to finish uploading");
+        setIsSubmitting(false);
+        return;
+      }
+
+      console.log("📦 Preparing image data from pre-uploaded images...");
+
+      // Use pre-uploaded images (already in Supabase storage with variants)
       const uploadedImages: {
         url: string;
         isPrimary: boolean;
         displayOrder: number;
-      }[] = [];
+        blurhash?: string;
+        thumbnailUrl?: string;
+        mediumUrl?: string;
+        largeUrl?: string;
+        width?: number;
+        height?: number;
+        fileSize?: number;
+      }[] = productImages.map((image, i) => {
+        console.log(`\n📷 Image ${i + 1}/${productImages.length}`);
+        console.log(`  - Has uploaded URL: ${!!image.uploadedUrl}`);
+        console.log(`  - Has thumbnail: ${!!image.thumbnailUrl}`);
+        console.log(`  - Has medium: ${!!image.mediumUrl}`);
+        console.log(`  - Has large: ${!!image.largeUrl}`);
+        console.log(`  - Has blurhash: ${!!image.blurhash}`);
+        console.log(`  - Is primary: ${image.isPrimary}`);
 
-      for (let i = 0; i < productImages.length; i++) {
-        const image = productImages[i];
+        return {
+          url: image.uploadedUrl || image.url,
+          isPrimary: image.isPrimary,
+          displayOrder: i,
+          blurhash: image.blurhash,
+          thumbnailUrl: image.thumbnailUrl,
+          mediumUrl: image.mediumUrl,
+          largeUrl: image.largeUrl,
+          width: image.width,
+          height: image.height,
+          fileSize: image.fileSize,
+        };
+      });
 
-        if (image.file) {
-          try {
-            // Upload file to Supabase Storage
-            const fileExt = image.file.name.split(".").pop();
-            const fileName = `${Date.now()}_${i}_${Math.random()
-              .toString(36)
-              .substring(7)}.${fileExt}`;
-            const filePath = `products/${fileName}`;
-
-            const { data, error } = await supabaseBrowserClient.storage
-              .from("product-images")
-              .upload(filePath, image.file, {
-                cacheControl: "3600",
-                upsert: false,
-              });
-
-            if (error) {
-              console.error("Storage upload error:", error);
-              // If bucket doesn't exist, use the local blob URL as fallback
-              if (error.message.includes("Bucket not found")) {
-                toast.warning(
-                  "Storage bucket not found. Using local preview URL. Please set up Supabase Storage."
-                );
-                uploadedImages.push({
-                  url: image.url, // Use the blob URL temporarily
-                  isPrimary: image.isPrimary,
-                  displayOrder: i,
-                });
-                continue;
-              }
-              throw error;
-            }
-
-            // Get public URL
-            const {
-              data: { publicUrl },
-            } = supabaseBrowserClient.storage
-              .from("product-images")
-              .getPublicUrl(filePath);
-
-            uploadedImages.push({
-              url: publicUrl,
-              isPrimary: image.isPrimary,
-              displayOrder: i,
-            });
-          } catch (uploadError: any) {
-            console.error("Error uploading image:", uploadError);
-            // Fallback to blob URL if upload fails
-            uploadedImages.push({
-              url: image.url,
-              isPrimary: image.isPrimary,
-              displayOrder: i,
-            });
-          }
-        } else {
-          // Use existing URL (if any)
-          uploadedImages.push({
-            url: image.url,
-            isPrimary: image.isPrimary,
-            displayOrder: i,
-          });
-        }
-      }
+      console.log(`\n✅ Prepared ${uploadedImages.length} images for database`);
 
       // Extract materials and pricing for separate table
       const { materials, materialPricing, ...productData } = values;
 
+      console.log(`\n📦 Product Data Preparation:`);
+      console.log(`  - Materials selected: ${materials.length}`);
+      console.log(`  - Category ID: ${productData.category_id || 'None'}`);
+
       // Update primary_image_url with the primary image
       const primaryImage = uploadedImages.find((img) => img.isPrimary);
+      console.log(`  - Primary image: ${primaryImage ? primaryImage.url : uploadedImages[0]?.url}`);
 
       // Clean up data: convert empty strings to null, then filter out null/undefined
       // This is important for UUID fields like category_id which can't accept empty strings
@@ -505,10 +502,14 @@ export function CreateProductDialog({
           .filter(([_, value]) => value !== null && value !== undefined) // Remove null/undefined
       );
 
+      console.log(`  - Cleaned product data fields: ${Object.keys(cleanedProductData).length}`);
+
       if (isEditMode && productId) {
-        // EDIT MODE: Update existing product
-        
+        console.log(`\n=== EDIT MODE ===`);
+        console.log(`📝 Updating product ID: ${productId}`);
+
         // Step 1: Update the product
+        console.log(`\nStep 1/5: Updating product base data...`);
         await updateProduct({
           resource: "products",
           id: productId,
@@ -517,9 +518,12 @@ export function CreateProductDialog({
             primary_image_url: primaryImage?.url || uploadedImages[0].url,
           },
         });
+        console.log(`✓ Product updated successfully`);
 
         // Step 2: Delete existing product materials (we'll recreate them)
+        console.log(`\nStep 2/5: Deleting existing product materials...`);
         const existingMaterials = (existingProduct as any)?.product_materials || [];
+        console.log(`  - Existing materials: ${existingMaterials.length}`);
         if (existingMaterials.length > 0) {
           await Promise.all(
             existingMaterials.map((pm: any) =>
@@ -529,9 +533,12 @@ export function CreateProductDialog({
                 .eq("id", pm.id)
             )
           );
+          console.log(`✓ Deleted ${existingMaterials.length} existing materials`);
         }
 
         // Step 3: Create new product materials
+        console.log(`\nStep 3/5: Creating new product materials...`);
+        console.log(`  - New materials to create: ${materials.length}`);
         if (materials && materials.length > 0) {
           await Promise.all(
             materials.map((materialId) => {
@@ -555,10 +562,13 @@ export function CreateProductDialog({
               });
             })
           );
+          console.log(`✓ Created ${materials.length} product materials`);
         }
 
         // Step 4: Delete existing product images (we'll recreate them)
+        console.log(`\nStep 4/5: Deleting existing product images...`);
         const existingImages = (existingProduct as any)?.product_images || [];
+        console.log(`  - Existing images: ${existingImages.length}`);
         if (existingImages.length > 0) {
           await Promise.all(
             existingImages.map((img: any) =>
@@ -568,9 +578,12 @@ export function CreateProductDialog({
                 .eq("id", img.id)
             )
           );
+          console.log(`✓ Deleted ${existingImages.length} existing images`);
         }
 
         // Step 5: Create new product images
+        console.log(`\nStep 5/5: Creating new product images...`);
+        console.log(`  - Images to create: ${uploadedImages.length}`);
         if (uploadedImages.length > 0) {
           await Promise.all(
             uploadedImages.map((image) =>
@@ -578,20 +591,31 @@ export function CreateProductDialog({
                 resource: "product_images",
                 values: {
                   product_id: productId,
-                  image_url: image.url,
+                  original_url: image.url,
+                  thumbnail_url: image.thumbnailUrl || null,
+                  medium_url: image.mediumUrl || null,
+                  large_url: image.largeUrl || null,
+                  width: image.width || null,
+                  height: image.height || null,
+                  file_size: image.fileSize || null,
                   is_primary: image.isPrimary,
                   display_order: image.displayOrder,
+                  blurhash: image.blurhash || null,
                 },
               })
             )
           );
+          console.log(`✓ Created ${uploadedImages.length} product images`);
         }
 
+        console.log(`\n✅ Product "${values.name}" updated successfully!`);
         toast.success(`Product "${values.name}" updated successfully!`);
       } else {
-        // CREATE MODE: Create new product
-        
+        console.log(`\n=== CREATE MODE ===`);
+        console.log(`📝 Creating new product: ${values.name}`);
+
         // Step 1: Create the product
+        console.log(`\nStep 1/3: Creating product base data...`);
         const productResult = await createProduct({
           resource: "products",
           values: {
@@ -601,8 +625,11 @@ export function CreateProductDialog({
         });
 
         const createdProductId = productResult.data.id;
+        console.log(`✓ Product created with ID: ${createdProductId}`);
 
         // Step 2: Create product materials with pricing
+        console.log(`\nStep 2/3: Creating product materials...`);
+        console.log(`  - Materials to create: ${materials.length}`);
         if (materials && materials.length > 0) {
           await Promise.all(
             materials.map((materialId) => {
@@ -626,9 +653,12 @@ export function CreateProductDialog({
               });
             })
           );
+          console.log(`✓ Created ${materials.length} product materials`);
         }
 
         // Step 3: Create product images (all images including primary)
+        console.log(`\nStep 3/3: Creating product images...`);
+        console.log(`  - Images to create: ${uploadedImages.length}`);
         if (uploadedImages.length > 0) {
           await Promise.all(
             uploadedImages.map((image) =>
@@ -636,30 +666,52 @@ export function CreateProductDialog({
                 resource: "product_images",
                 values: {
                   product_id: createdProductId,
-                  image_url: image.url,
+                  original_url: image.url,
+                  thumbnail_url: image.thumbnailUrl || null,
+                  medium_url: image.mediumUrl || null,
+                  large_url: image.largeUrl || null,
+                  width: image.width || null,
+                  height: image.height || null,
+                  file_size: image.fileSize || null,
                   is_primary: image.isPrimary,
                   display_order: image.displayOrder,
+                  blurhash: image.blurhash || null,
                 },
               })
             )
           );
+          console.log(`✓ Created ${uploadedImages.length} product images`);
         }
+
+        console.log(`\n✅ Product "${values.name}" created successfully!`);
+        console.log(`   - Product ID: ${createdProductId}`);
+        console.log(`   - Images: ${uploadedImages.length}`);
+        console.log(`   - Materials: ${materials.length}`);
 
         toast.success(
           `Product "${values.name}" created successfully with ${uploadedImages.length} images and ${materials.length} material variants!`
         );
       }
-      
+
+      console.log(`\n🧹 Cleaning up form state...`);
       setProductImages([]);
       form.reset();
       onOpenChange(false);
+      console.log(`✅ Form closed successfully`);
+      console.log(`=== Product Submission Complete ===\n`);
     } catch (error: any) {
-      console.error(`Error ${isEditMode ? 'updating' : 'creating'} product:`, error);
+      console.error(`\n❌ Error ${isEditMode ? 'updating' : 'creating'} product:`, error);
+      console.error(`Error details:`, {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      });
       toast.error(
         `Error ${isEditMode ? 'updating' : 'creating'} product: ${error.message || "Unknown error"}`
       );
     } finally {
       setIsSubmitting(false);
+      console.log(`Submission state reset`);
     }
   };
 
@@ -802,25 +854,204 @@ export function CreateProductDialog({
                     type="file"
                     accept="image/*"
                     multiple
-                    onChange={(e) => {
+                    onChange={async (e) => {
                       const files = Array.from(e.target.files || []);
-                      if (files.length > 0) {
-                        const newImages = files.map((file, index) => ({
-                          url: URL.createObjectURL(file),
-                          file,
-                          isPrimary: productImages.length === 0 && index === 0,
-                        }));
-                        setProductImages([...productImages, ...newImages]);
-                        // Set primary image URL in form
-                        if (
-                          productImages.length === 0 &&
-                          newImages.length > 0
-                        ) {
-                          form.setValue("primary_image_url", newImages[0].url);
+                      if (files.length === 0) return;
+
+                      console.log(`📁 Selected ${files.length} file(s) for upload`);
+
+                      // Create preview images with uploading state
+                      const newImages: ProductImage[] = files.map((file, index) => ({
+                        url: URL.createObjectURL(file),
+                        file,
+                        isPrimary: productImages.length === 0 && index === 0,
+                        isUploading: true,
+                        blurhash: undefined,
+                        uploadedUrl: undefined,
+                      }));
+
+                      setProductImages([...productImages, ...newImages]);
+                      toast.info(`Uploading ${files.length} image(s) to storage...`);
+
+                      // Upload all files simultaneously (in parallel)
+                      const uploadPromises = files.map(async (file, i) => {
+                        const imageIndex = productImages.length + i;
+
+                        console.log(`\n📤 Starting upload ${i + 1}/${files.length}: ${file.name}`);
+
+                        try {
+                          // Upload to Supabase Storage
+                          const fileExt = file.name.split(".").pop();
+                          const fileName = `${Date.now()}_${i}_${Math.random()
+                            .toString(36)
+                            .substring(7)}.${fileExt}`;
+                          const filePath = `products/${fileName}`;
+
+                          console.log(`  📦 File size: ${(file.size / 1024).toFixed(2)} KB`);
+                          console.log(`  ⬆️  Uploading to: ${filePath}`);
+
+                          const { error: uploadError } = await supabaseBrowserClient.storage
+                            .from("product-images")
+                            .upload(filePath, file, {
+                              cacheControl: "3600",
+                              upsert: false,
+                            });
+
+                          if (uploadError) {
+                            console.error(`  ❌ Upload failed:`, uploadError);
+                            toast.error(`Failed to upload ${file.name}: ${uploadError.message}`);
+
+                            // Update image state to show error
+                            setProductImages((prev) => {
+                              const updated = [...prev];
+                              updated[imageIndex] = {
+                                ...updated[imageIndex],
+                                isUploading: false,
+                              };
+                              return updated;
+                            });
+                            return;
+                          }
+
+                          // Get public URL
+                          const {
+                            data: { publicUrl },
+                          } = supabaseBrowserClient.storage
+                            .from("product-images")
+                            .getPublicUrl(filePath);
+
+                          console.log(`  ✓ Upload successful`);
+                          console.log(`  🔗 Public URL: ${publicUrl}`);
+                          console.log(`  🔄 Processing variants and generating blurhash...`);
+
+                          // Process image to generate variants + blurhash
+                          let blurhash: string | undefined;
+                          let thumbnailUrl: string | undefined;
+                          let mediumUrl: string | undefined;
+                          let largeUrl: string | undefined;
+                          let width: number | undefined;
+                          let height: number | undefined;
+                          let fileSize: number | undefined;
+
+                          try {
+                            const response = await fetch("/api/process-image", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                imageUrl: publicUrl,
+                                storagePath: filePath,
+                              }),
+                            });
+
+                            if (response.ok) {
+                              const data = await response.json();
+                              blurhash = data.blurhash;
+                              width = data.width;
+                              height = data.height;
+                              fileSize = data.file_size;
+
+                              console.log(`  ✓ Blurhash generated: ${blurhash?.substring(0, 20)}...`);
+                              console.log(`  📐 Dimensions: ${width}x${height}`);
+                              console.log(`  📦 File size: ${((fileSize || 0) / 1024).toFixed(2)} KB`);
+
+                              // Upload variants back to storage
+                              console.log(`  ⬆️  Uploading ${data.variants.length} variants...`);
+
+                              for (const variant of data.variants) {
+                                const variantBuffer = Buffer.from(variant.data, "base64");
+                                const variantBlob = new Blob([variantBuffer], {
+                                  type: "image/webp",
+                                });
+
+                                const { error: variantError } =
+                                  await supabaseBrowserClient.storage
+                                    .from("product-images")
+                                    .upload(variant.path, variantBlob, {
+                                      cacheControl: "3600",
+                                      upsert: false,
+                                    });
+
+                                if (variantError) {
+                                  console.warn(
+                                    `    ⚠️  Failed to upload ${variant.name}:`,
+                                    variantError
+                                  );
+                                  continue;
+                                }
+
+                                // Get public URL for variant
+                                const {
+                                  data: { publicUrl: variantPublicUrl },
+                                } = supabaseBrowserClient.storage
+                                  .from("product-images")
+                                  .getPublicUrl(variant.path);
+
+                                // Assign to appropriate URL variable
+                                if (variant.name === "thumbnail") {
+                                  thumbnailUrl = variantPublicUrl;
+                                } else if (variant.name === "medium") {
+                                  mediumUrl = variantPublicUrl;
+                                } else if (variant.name === "large") {
+                                  largeUrl = variantPublicUrl;
+                                }
+
+                                console.log(
+                                  `    ✓ ${variant.name}: ${(variant.size / 1024).toFixed(2)} KB`
+                                );
+                              }
+
+                              console.log(`  ✅ All variants uploaded`);
+                            } else {
+                              const errorData = await response.json();
+                              console.warn(
+                                `  ⚠️  Image processing failed:`,
+                                errorData
+                              );
+                            }
+                          } catch (error) {
+                            console.error(`  ❌ Image processing error:`, error);
+                          }
+
+                          // Update image state with all URLs and metadata
+                          setProductImages((prev) => {
+                            const updated = [...prev];
+                            updated[imageIndex] = {
+                              ...updated[imageIndex],
+                              uploadedUrl: publicUrl,
+                              thumbnailUrl,
+                              mediumUrl,
+                              largeUrl,
+                              blurhash,
+                              width,
+                              height,
+                              fileSize,
+                              isUploading: false,
+                            };
+                            return updated;
+                          });
+
+                          console.log(`  ✅ Image ${i + 1} fully processed`);
+                        } catch (error: any) {
+                          console.error(`  ❌ Error processing image ${i + 1}:`, error);
+                          toast.error(`Error processing ${file.name}`);
+
+                          setProductImages((prev) => {
+                            const updated = [...prev];
+                            updated[imageIndex] = {
+                              ...updated[imageIndex],
+                              isUploading: false,
+                            };
+                            return updated;
+                          });
                         }
-                        toast.success(`${files.length} image(s) added`);
-                        e.target.value = ""; // Reset input
-                      }
+                      });
+
+                      // Wait for all uploads to complete
+                      await Promise.all(uploadPromises);
+
+                      toast.success(`${files.length} image(s) uploaded successfully!`);
+                      console.log(`✅ All ${files.length} images uploaded and processed simultaneously`);
+                      e.target.value = ""; // Reset input
                     }}
                     className="hidden"
                   />
@@ -853,11 +1084,28 @@ export function CreateProductDialog({
                             className="w-full h-full object-cover"
                           />
 
+                          {/* Uploading Overlay */}
+                          {image.isUploading && (
+                            <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
+                              <div className="text-center text-white">
+                                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+                                <p className="text-xs font-medium">Uploading...</p>
+                              </div>
+                            </div>
+                          )}
+
                           {/* Primary Badge */}
-                          {image.isPrimary && (
+                          {image.isPrimary && !image.isUploading && (
                             <div className="absolute top-2 left-2 bg-primary text-primary-foreground px-2 py-1 rounded text-xs font-semibold flex items-center gap-1">
                               <Star className="h-3 w-3 fill-current" />
                               Primary
+                            </div>
+                          )}
+
+                          {/* Uploaded Success Badge */}
+                          {image.uploadedUrl && !image.isUploading && (
+                            <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded text-xs font-semibold">
+                              ✓ Uploaded
                             </div>
                           )}
                         </div>
@@ -1435,7 +1683,15 @@ export function CreateProductDialog({
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting || materialsLoading || (isEditMode && productLoading)}>
+              <Button
+                type="submit"
+                disabled={
+                  isSubmitting ||
+                  materialsLoading ||
+                  (isEditMode && productLoading) ||
+                  productImages.some((img) => img.isUploading)
+                }
+              >
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1445,6 +1701,11 @@ export function CreateProductDialog({
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Loading...
+                  </>
+                ) : productImages.some((img) => img.isUploading) ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Uploading images...
                   </>
                 ) : (
                   isEditMode ? "Update Product" : "Create Product"
