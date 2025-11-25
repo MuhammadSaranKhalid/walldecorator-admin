@@ -35,7 +35,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import Image from "next/image";
-import { CreateProductDialog } from "@/components/admin/create-product-dialog";
+import Link from "next/link";
 import { toast } from "sonner";
 
 // Define interfaces based on database schema
@@ -85,10 +85,6 @@ export default function ProductsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [editProductId, setEditProductId] = useState<string | undefined>(
-    undefined
-  );
 
   // Fetch products from database with filters
   const {
@@ -257,13 +253,12 @@ export default function ProductsPage() {
             and inventory.
           </p>
         </div>
-        <Button
-          className="font-bold w-full sm:w-auto"
-          onClick={() => setCreateDialogOpen(true)}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add New Product
-        </Button>
+        <Link href="/admin/products/new">
+          <Button className="font-bold w-full sm:w-auto">
+            <Plus className="h-4 w-4 mr-2" />
+            Add New Product
+          </Button>
+        </Link>
       </div>
 
       {/* Main Content Card */}
@@ -449,14 +444,15 @@ export default function ProductsPage() {
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setEditProductId(productId)}
-                                title="Edit product"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
+                              <Link href={`/admin/products/${productId}/edit`}>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  title="Edit product"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </Link>
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -508,30 +504,6 @@ export default function ProductsPage() {
           )}
         </CardContent>
       </Card>
-
-      {/* Create Product Dialog */}
-      <CreateProductDialog
-        open={createDialogOpen}
-        onOpenChange={(open) => {
-          setCreateDialogOpen(open);
-          // Refetch products when dialog closes
-          if (!open) {
-            refetchProducts();
-          }
-        }}
-      />
-
-      {/* Edit Product Dialog */}
-      <CreateProductDialog
-        open={!!editProductId}
-        productId={editProductId}
-        onOpenChange={(open) => {
-          if (!open) {
-            setEditProductId(undefined);
-            refetchProducts();
-          }
-        }}
-      />
     </div>
   );
 }
