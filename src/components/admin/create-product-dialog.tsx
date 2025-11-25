@@ -209,7 +209,29 @@ export function CreateProductDialog({
       enabled: isEditMode && open,
     },
     meta: {
-      select: "*, product_materials(id, material_id, price, inventory_quantity, low_stock_threshold, finish, is_available), product_images(id, image_url, is_primary, display_order)",
+      select: `
+        *,
+        product_materials (
+          id,
+          material_id,
+          price,
+          inventory_quantity,
+          low_stock_threshold,
+          finish,
+          is_available
+        ),
+        product_images (
+          id,
+          original_url,
+          thumbnail_url,
+          medium_url,
+          large_url,
+          alt_text,
+          is_primary,
+          display_order,
+          blurhash
+        )
+      `,
     },
   });
 
@@ -280,7 +302,7 @@ export function CreateProductDialog({
         const images = product.product_images
           .sort((a: any, b: any) => a.display_order - b.display_order)
           .map((img: any) => ({
-            url: img.image_url,
+            url: img.original_url || img.thumbnail_url || img.medium_url || img.large_url,
             isPrimary: img.is_primary,
           }));
         setProductImages(images);
