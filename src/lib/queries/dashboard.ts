@@ -117,17 +117,23 @@ export async function getRecentOrders(limit: number = 5): Promise<RecentOrder[]>
     return [];
   }
 
-  return (data || []).map(order => ({
-    id: order.id,
-    order_number: order.order_number,
-    customer_name: order.customer
-      ? `${order.customer.first_name || ''} ${order.customer.last_name || ''}`.trim() || 'Guest'
-      : 'Guest',
-    customer_email: order.customer?.email || '',
-    created_at: order.created_at,
-    total: parseFloat(order.total || '0'),
-    status: order.status,
-  }));
+  return (data || []).map(order => {
+    // Supabase returns customer as an array, so we need to get the first element
+    const customerData = order.customer as any;
+    const customer = Array.isArray(customerData) ? customerData[0] : customerData;
+
+    return {
+      id: order.id,
+      order_number: order.order_number,
+      customer_name: customer
+        ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Guest'
+        : 'Guest',
+      customer_email: customer?.email || '',
+      created_at: order.created_at,
+      total: parseFloat(order.total || '0'),
+      status: order.status,
+    };
+  });
 }
 
 export async function getMonthlySalesData() {
