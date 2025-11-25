@@ -9,25 +9,29 @@ export async function DashboardStats() {
     {
       title: "Total Revenue",
       value: `$${stats.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      change: stats.monthRevenueChange.toFixed(1),
+      change: stats.monthRevenueChange,
+      changeText: stats.monthRevenueChange.toFixed(1),
       trend: stats.monthRevenueChange >= 0 ? "up" : "down",
     },
     {
       title: "Sales this Month",
       value: `$${stats.monthRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      change: stats.monthRevenueChange.toFixed(1),
+      change: stats.monthRevenueChange,
+      changeText: stats.monthRevenueChange.toFixed(1),
       trend: stats.monthRevenueChange >= 0 ? "up" : "down",
     },
     {
       title: "New Orders",
       value: stats.newOrders.toString(),
-      change: stats.newOrdersChange.toFixed(1),
+      change: stats.newOrdersChange,
+      changeText: stats.newOrdersChange.toFixed(1),
       trend: stats.newOrdersChange >= 0 ? "up" : "down",
     },
     {
       title: "Pending Customizations",
       value: stats.pendingCustomizations.toString(),
-      change: stats.pendingCustomizationsChange.toFixed(1),
+      change: stats.pendingCustomizationsChange,
+      changeText: stats.pendingCustomizationsChange.toFixed(1),
       trend: stats.pendingCustomizationsChange >= 0 ? "up" : "down",
     },
   ];
@@ -53,7 +57,7 @@ export async function DashboardStats() {
               ) : (
                 <TrendingDown className="h-4 w-4" />
               )}
-              {stat.change >= 0 ? '+' : ''}{stat.change}%
+              {stat.change >= 0 ? '+' : ''}{stat.changeText}%
             </p>
           </CardContent>
         </Card>
