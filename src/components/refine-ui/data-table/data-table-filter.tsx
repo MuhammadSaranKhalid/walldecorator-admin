@@ -268,11 +268,11 @@ export function DataTableFilterCombobox<TData>({
           ? Array.isArray(value)
             ? value
             : value && typeof value === "string"
-            ? [value]
-            : []
+              ? [value]
+              : []
           : value && typeof value === "string"
-          ? [value]
-          : [];
+            ? [value]
+            : [];
 
         const handleSelect = (optionValue: string) => {
           if (multiple) {
@@ -797,6 +797,8 @@ const CRUD_OPERATOR_LABELS: Record<
     i18nKey: "table.filter.operator.nin",
     defaultLabel: "Not includes in an array",
   },
+  eqs: { i18nKey: "table.filter.operator.eqs", defaultLabel: "Equals (case-sensitive)" },
+  nes: { i18nKey: "table.filter.operator.nes", defaultLabel: "Not equals (case-sensitive)" },
   ina: {
     i18nKey: "table.filter.operator.ina",
     defaultLabel: "Includes in an array (case sensitive)",

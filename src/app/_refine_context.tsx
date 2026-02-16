@@ -41,12 +41,13 @@ export const RefineContext = ({ children }: RefineContextProps) => {
             },
             {
               name: "categories",
-              list: "/categories",
-              create: "/categories/create",
-              edit: "/categories/edit/:id",
-              show: "/categories/show/:id",
+              list: "/admin/categories",
+              create: "/admin/categories/create",
+              edit: "/admin/categories/:id/edit",
+              show: "/admin/categories/:id/show",
               meta: {
                 canDelete: true,
+                label: "Categories",
               },
             },
           ]}

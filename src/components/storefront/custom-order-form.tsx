@@ -27,9 +27,7 @@ import { toast } from "sonner";
 
 const customOrderSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
-  material: z.enum(["acrylic", "steel", "iron", "wood"], {
-    required_error: "Please select a material",
-  }),
+  material: z.enum(["acrylic", "steel", "iron", "wood"]),
   description: z.string().min(10, "Description must be at least 10 characters").max(500, "Description must be less than 500 characters"),
 });
 
@@ -40,7 +38,7 @@ export function CustomOrderForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<CustomOrderFormData>({
-    resolver: zodResolver(customOrderSchema),
+    resolver: zodResolver(customOrderSchema) as any,
     defaultValues: {
       email: "",
       material: undefined,
@@ -54,10 +52,10 @@ export function CustomOrderForm() {
       // TODO: Implement Supabase submission
       console.log("Custom order data:", data);
       console.log("File:", file);
-      
+
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       toast.success("Custom order request submitted successfully! We'll contact you soon.");
       form.reset();
       setFile(null);
@@ -85,11 +83,11 @@ export function CustomOrderForm() {
         <div className="text-center md:text-left">
           <h2 className="text-3xl font-bold leading-tight tracking-tight">Your Vision, Our Craft</h2>
           <p className="mt-4 text-muted-foreground">
-            Have a unique idea? We specialize in bringing custom wall decor to life. Describe your vision below, 
+            Have a unique idea? We specialize in bringing custom wall decor to life. Describe your vision below,
             and our designers will collaborate with you to create a piece that&apos;s truly yours.
           </p>
           <div className="mt-8 hidden md:block">
-            <div 
+            <div
               className="w-full h-64 md:h-80 bg-cover bg-center rounded-lg"
               style={{
                 backgroundImage: 'url("https://images.unsplash.com/photo-1452860606245-08befc0ff44b?q=80&w=2070&auto=format&fit=crop")'
@@ -146,10 +144,10 @@ export function CustomOrderForm() {
                   <FormItem>
                     <FormLabel>Describe your customization</FormLabel>
                     <FormControl>
-                      <Textarea 
-                        placeholder="E.g., size, color, specific design elements..." 
-                        rows={4} 
-                        {...field} 
+                      <Textarea
+                        placeholder="E.g., size, color, specific design elements..."
+                        rows={4}
+                        {...field}
                       />
                     </FormControl>
                     <FormMessage />
@@ -165,9 +163,9 @@ export function CustomOrderForm() {
                     <div className="flex text-sm text-muted-foreground">
                       <label className="relative cursor-pointer rounded-md font-medium text-primary hover:text-primary/80">
                         <span>Upload a file</span>
-                        <input 
-                          type="file" 
-                          className="sr-only" 
+                        <input
+                          type="file"
+                          className="sr-only"
                           accept="image/png,image/jpeg,image/jpg,image/gif"
                           onChange={handleFileChange}
                         />
@@ -181,8 +179,8 @@ export function CustomOrderForm() {
                 </div>
               </div>
 
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold"
                 disabled={isSubmitting}
               >

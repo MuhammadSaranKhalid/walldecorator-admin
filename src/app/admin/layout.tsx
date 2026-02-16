@@ -20,8 +20,10 @@ export default async function AdminLayout({
           <SidebarTrigger className="-ml-1" />
           <div className="flex-1" />
         </header>
-        <main className="flex-1 p-8 overflow-y-auto">
-          {children}
+        <main className="flex-1 p-8 overflow-y-auto w-full">
+          <div className="mx-auto w-full max-w-7xl space-y-4">
+            {children}
+          </div>
         </main>
       </SidebarInset>
     </SidebarProvider>
