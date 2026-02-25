@@ -45,6 +45,7 @@ export const createSupabaseAdminClient = async () => {
         try {
           cookieStore.set({ name, value, ...options });
         } catch (error) {
+          
           // The `set` method was called from a Server Component.
           // This can be ignored for admin operations.
         }
