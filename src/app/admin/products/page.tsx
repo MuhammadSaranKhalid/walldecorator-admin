@@ -262,8 +262,8 @@ export default function ProductsPage() {
       </div>
 
       {/* Main Content Card */}
-      <Card>
-        <CardContent className="p-6">
+      {/* <Card>
+        <CardContent className="p-6"> */}
           {/* Search and Filters */}
           <div className="flex flex-col md:flex-row gap-4 mb-4">
             <div className="grow relative">
@@ -502,8 +502,8 @@ export default function ProductsPage() {
               </Button>
             </div>
           )}
-        </CardContent>
-      </Card>
+        {/* </CardContent>
+      </Card> */}
     </div>
   );
 }
