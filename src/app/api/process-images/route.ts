@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
 import { encode } from "blurhash";
-import { supabaseAdmin } from "@utils/supabase/admin";
+import { createSupabaseAdminClient } from "@utils/supabase/server";
 
 export async function POST(req: NextRequest) {
     console.log("Process Images API called");
@@ -17,6 +17,9 @@ export async function POST(req: NextRequest) {
         if (token !== process.env.SUPABASE_SERVICE_ROLE_KEY) {
             return NextResponse.json({ error: "Invalid token" }, { status: 401 });
         }
+
+        // Create admin client
+        const supabaseAdmin = await createSupabaseAdminClient();
 
         // 2. Parse Payload
         const rawBody = await req.text();
