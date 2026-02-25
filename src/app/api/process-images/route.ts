@@ -1,20 +1,7 @@
-
-import { createClient } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
 import { encode } from "blurhash";
-
-// Initialize Supabase Admin Client
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-        auth: {
-            autoRefreshToken: false,
-            persistSession: false,
-        },
-    }
-);
+import { supabaseAdmin } from "@utils/supabase/admin";
 
 export async function POST(req: NextRequest) {
     console.log("Process Images API called");
