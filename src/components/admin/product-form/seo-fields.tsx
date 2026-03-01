@@ -14,11 +14,11 @@ export function SEOFields() {
       <h3 className="text-sm font-semibold mb-4">SEO Settings</h3>
       <div className="space-y-4">
         <Controller
-          name="meta_title"
+          name="seo_title"
           control={control}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor={field.name}>Meta Title</FieldLabel>
+              <FieldLabel htmlFor={field.name}>SEO Title</FieldLabel>
               <Input
                 {...field}
                 placeholder="Custom page title for search engines (leave empty to use product name)"
@@ -34,11 +34,11 @@ export function SEOFields() {
         />
 
         <Controller
-          name="meta_description"
+          name="seo_description"
           control={control}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor={field.name}>Meta Description</FieldLabel>
+              <FieldLabel htmlFor={field.name}>SEO Description</FieldLabel>
               <Textarea
                 {...field}
                 placeholder="Brief description for search engines (leave empty to use product description)"

@@ -38,50 +38,65 @@ import Image from "next/image";
 import Link from "next/link";
 import { toast } from "sonner";
 
-// Define interfaces based on database schema
-interface Material {
+// Define interfaces based on new database schema
+interface AttributeValue {
   id: string;
-  name: string;
-  slug: string;
+  value: string;
+  display_name: string;
+  display_order: number | null;
 }
 
-interface ProductMaterial {
+interface ProductVariant {
   id: string;
+  product_id: string;
+  sku: string;
   material_id: string;
+  size_id: string;
+  thickness_id: string;
   price: number;
-  inventory_quantity: number;
-  low_stock_threshold: number;
-  finish?: string;
-  is_available: boolean;
-  materials?: Material; // Relation from Supabase join
+  compare_at_price: number | null;
+  cost_per_item: number | null;
+  is_default: boolean | null;
+  material?: AttributeValue;
+  size?: AttributeValue;
+  thickness?: AttributeValue;
+}
+
+interface ProductImage {
+  id: string;
+  product_id: string;
+  storage_path: string;
+  thumbnail_path: string | null;
+  medium_path: string | null;
+  large_path: string | null;
+  alt_text: string | null;
+  display_order: number | null;
+  processing_status: string | null;
 }
 
 interface Product {
   id: string;
   name: string;
-  sku: string;
   slug: string;
-  description: string;
-  primary_image_url: string;
-  status: "active" | "inactive" | "archived" | "draft";
-  category_id?: string;
-  dimensions_width?: number;
-  dimensions_height?: number;
-  dimensions_depth?: number;
-  weight?: number;
-  is_featured: boolean;
-  is_new_arrival: boolean;
-  is_best_seller: boolean;
+  description: string | null;
+  status: "draft" | "active" | "archived";
+  category_id?: string | null;
+  is_featured: boolean | null;
+  featured_order: number | null;
+  total_sold: number | null;
+  view_count: number | null;
+  seo_title: string | null;
+  seo_description: string | null;
   created_at: string;
   updated_at: string;
-  product_materials?: ProductMaterial[]; // Relation from Supabase join
+  product_variants?: ProductVariant[];
+  product_images?: ProductImage[];
 }
 
 const ITEMS_PER_PAGE = 10;
 
 export default function ProductsPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [materialFilter, setMaterialFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -100,19 +115,9 @@ export default function ProductsPage() {
       ...(searchQuery
         ? [
             {
-              operator: "or" as const,
-              value: [
-                {
-                  field: "name",
-                  operator: "contains" as const,
-                  value: searchQuery,
-                },
-                {
-                  field: "sku",
-                  operator: "contains" as const,
-                  value: searchQuery,
-                },
-              ],
+              field: "name",
+              operator: "contains" as const,
+              value: searchQuery,
             },
           ]
         : []),
@@ -137,31 +142,16 @@ export default function ProductsPage() {
       },
     ],
     meta: {
-      select:
-        "*, product_materials(id, material_id, price, inventory_quantity, low_stock_threshold, finish, is_available, materials(id, name, slug))",
-    },
-  });
-
-  // Fetch all materials for filter dropdown
-  const {
-    result: { data: materials = [] },
-  } = useList<Material>({
-    resource: "materials",
-    filters: [
-      {
-        field: "is_active",
-        operator: "eq",
-        value: true,
-      },
-    ],
-    sorters: [
-      {
-        field: "display_order",
-        order: "asc",
-      },
-    ],
-    pagination: {
-      mode: "off",
+      select: `
+        *,
+        product_variants(
+          id, sku, price, compare_at_price, cost_per_item, is_default,
+          material:product_attribute_values!product_variants_material_id_fkey(id, value, display_name),
+          size:product_attribute_values!product_variants_size_id_fkey(id, value, display_name),
+          thickness:product_attribute_values!product_variants_thickness_id_fkey(id, value, display_name)
+        ),
+        product_images(id, storage_path, thumbnail_path, medium_path, large_path, alt_text, display_order, processing_status)
+      `,
     },
   });
 
@@ -169,41 +159,46 @@ export default function ProductsPage() {
 
   const totalPages = Math.ceil(totalProducts / ITEMS_PER_PAGE);
 
-  // Filter products by material if filter is active
-  const filteredProducts = useMemo(() => {
-    if (materialFilter === "all") return products;
-
-    return products.filter((product) => {
-      return product.product_materials?.some(
-        (pm: ProductMaterial) => pm.materials?.id === materialFilter
-      );
-    });
-  }, [products, materialFilter]);
-
-  // Helper function to get material names for a product
-  const getProductMaterials = (product: Product): string => {
-    if (!product.product_materials || product.product_materials.length === 0) {
-      return "N/A";
-    }
-    return product.product_materials
-      .map((pm) => pm.materials?.name || "Unknown")
-      .join(", ");
+  // Helper function to get variant count for a product
+  const getVariantCount = (product: Product): number => {
+    return product.product_variants?.length || 0;
   };
 
-  // Helper function to get total inventory
-  const getTotalInventory = (product: Product): number => {
-    if (!product.product_materials || product.product_materials.length === 0) {
-      return 0;
+  // Helper function to get price range for a product
+  const getPriceRange = (product: Product): string => {
+    if (!product.product_variants || product.product_variants.length === 0) {
+      return "N/A";
     }
-    return product.product_materials.reduce(
-      (sum, pm) => sum + pm.inventory_quantity,
-      0
+
+    const prices = product.product_variants.map(v => v.price);
+    const minPrice = Math.min(...prices);
+    const maxPrice = Math.max(...prices);
+
+    if (minPrice === maxPrice) {
+      return `$${minPrice.toFixed(2)}`;
+    }
+    return `$${minPrice.toFixed(2)} - $${maxPrice.toFixed(2)}`;
+  };
+
+  // Helper function to get primary image
+  const getPrimaryImage = (product: Product): string | null => {
+    if (!product.product_images || product.product_images.length === 0) {
+      return null;
+    }
+
+    // Sort by display_order and get the first image
+    const sortedImages = [...product.product_images].sort(
+      (a, b) => (a.display_order || 0) - (b.display_order || 0)
     );
+
+    const primaryImage = sortedImages[0];
+    // Use thumbnail, medium, or large path based on availability
+    return primaryImage.thumbnail_path || primaryImage.medium_path || primaryImage.large_path || primaryImage.storage_path;
   };
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedProducts(filteredProducts.map((p) => String(p.id)));
+      setSelectedProducts(products.map((p) => String(p.id)));
     } else {
       setSelectedProducts([]);
     }
@@ -269,7 +264,7 @@ export default function ProductsPage() {
             <div className="grow relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
-                placeholder="Search by product name or SKU"
+                placeholder="Search by product name"
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
@@ -279,25 +274,6 @@ export default function ProductsPage() {
               />
             </div>
             <div className="flex gap-3">
-              <Select
-                value={materialFilter}
-                onValueChange={(value) => {
-                  setMaterialFilter(value);
-                  setCurrentPage(1);
-                }}
-              >
-                <SelectTrigger className="w-[140px] h-12">
-                  <SelectValue placeholder="Material" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Materials</SelectItem>
-                  {materials.map((material) => (
-                    <SelectItem key={material.id} value={material.id}>
-                      {material.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
               <Select
                 value={statusFilter}
                 onValueChange={(value) => {
@@ -311,7 +287,6 @@ export default function ProductsPage() {
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
                   <SelectItem value="archived">Archived</SelectItem>
                   <SelectItem value="draft">Draft</SelectItem>
                 </SelectContent>
@@ -354,21 +329,21 @@ export default function ProductsPage() {
                     <TableHead className="w-12">
                       <Checkbox
                         checked={
-                          filteredProducts.length > 0 &&
-                          selectedProducts.length === filteredProducts.length
+                          products.length > 0 &&
+                          selectedProducts.length === products.length
                         }
                         onCheckedChange={handleSelectAll}
                       />
                     </TableHead>
                     <TableHead colSpan={2}>Product</TableHead>
-                    <TableHead>SKU</TableHead>
-                    <TableHead>Material</TableHead>
+                    <TableHead>Price Range</TableHead>
+                    <TableHead>Variants</TableHead>
                     <TableHead className="text-center">Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredProducts.length === 0 ? (
+                  {products.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="h-24 text-center">
                         <div className="flex flex-col items-center justify-center text-muted-foreground">
@@ -376,9 +351,7 @@ export default function ProductsPage() {
                             No products found
                           </p>
                           <p className="text-sm">
-                            {searchQuery ||
-                            materialFilter !== "all" ||
-                            statusFilter !== "all"
+                            {searchQuery || statusFilter !== "all"
                               ? "Try adjusting your filters"
                               : "Get started by creating your first product"}
                           </p>
@@ -386,9 +359,10 @@ export default function ProductsPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredProducts.map((product) => {
-                      const totalInventory = getTotalInventory(product);
-                      const materialsStr = getProductMaterials(product);
+                    products.map((product) => {
+                      const variantCount = getVariantCount(product);
+                      const priceRange = getPriceRange(product);
+                      const primaryImage = getPrimaryImage(product);
                       const productId = String(product.id);
 
                       return (
@@ -406,9 +380,9 @@ export default function ProductsPage() {
                           </TableCell>
                           <TableCell className="w-16">
                             <Avatar className="h-12 w-12 rounded-lg">
-                              {product.primary_image_url ? (
+                              {primaryImage ? (
                                 <AvatarImage
-                                  src={product.primary_image_url}
+                                  src={primaryImage}
                                   alt={product.name}
                                   className="object-cover"
                                 />
@@ -422,11 +396,11 @@ export default function ProductsPage() {
                           <TableCell className="font-medium">
                             {product.name}
                           </TableCell>
-                          <TableCell className="font-mono text-muted-foreground">
-                            {product.sku}
+                          <TableCell className="text-muted-foreground">
+                            {priceRange}
                           </TableCell>
                           <TableCell className="text-muted-foreground">
-                            {materialsStr}
+                            {variantCount} {variantCount === 1 ? "variant" : "variants"}
                           </TableCell>
                           <TableCell className="text-center">
                             <Badge
@@ -438,8 +412,9 @@ export default function ProductsPage() {
                                   : "destructive"
                               }
                             >
-                              {product.status.charAt(0).toUpperCase() +
-                                product.status.slice(1)}
+                              {product.status
+                                ? product.status.charAt(0).toUpperCase() + product.status.slice(1)
+                                : "Draft"}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right">

@@ -1,24 +1,29 @@
 "use client";
 
-import { useFormContext } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FieldDescription } from "@/components/ui/field";
-import { Loader2, X, Star, ImagePlus, MoveUp, MoveDown } from "lucide-react";
+import { Loader2, X, ImagePlus, MoveUp, MoveDown } from "lucide-react";
 import { toast } from "sonner";
 import { supabaseBrowserClient } from "@/utils/supabase/client";
-import { ProductImage, FormValues } from "./types";
+import { ProductImageUI } from "./types";
+import { useFormContext } from "react-hook-form";
+import { FormValues } from "./types";
 
-interface ProductImagesProps {
-  productImages: ProductImage[];
-  setProductImages: React.Dispatch<React.SetStateAction<ProductImage[]>>;
-}
+export function ProductImages() {
+  const { watch, setValue } = useFormContext<FormValues>();
+  const productImages = watch("images") || [];
 
-export function ProductImages({
-  productImages,
-  setProductImages,
-}: ProductImagesProps) {
+  // Wrapper to handle SetStateAction pattern for images
+  const setProductImages = (value: React.SetStateAction<ProductImageUI[]>) => {
+    if (typeof value === "function") {
+      const currentImages = watch("images") || [];
+      setValue("images", value(currentImages));
+    } else {
+      setValue("images", value);
+    }
+  };
   // Helper function to delete image from storage
   const deleteImageFromStorage = async (imageUrl: string) => {
     try {
@@ -51,8 +56,6 @@ export function ProductImages({
       console.error('Error deleting image from database:', error);
     }
   };
-  
-  const { setValue } = useFormContext<FormValues>();
 
   return (
     <Card>
@@ -61,7 +64,7 @@ export function ProductImages({
       </CardHeader>
       <CardContent className="space-y-4">
         <FieldDescription>
-          Upload multiple images. The first one will be the primary image.
+          Upload multiple images. Images are displayed in the order shown below. Use the up/down arrows to reorder.
         </FieldDescription>
 
         {/* File Upload */}
@@ -111,13 +114,14 @@ export function ProductImages({
               console.log(`✓ ${validFiles.length} valid file(s) ready for upload`);
 
               // Create preview images with uploading state
-              const newImages: ProductImage[] = validFiles.map((file, index) => ({
+              const newImages: ProductImageUI[] = validFiles.map((file, index) => ({
                 url: URL.createObjectURL(file),
                 file,
-                isPrimary: productImages.length === 0 && index === 0,
+                displayOrder: productImages.length + index,
                 isUploading: true,
                 blurhash: undefined,
                 uploadedUrl: undefined,
+                is_primary: productImages.length === 0 && index === 0, // First image is primary if no existing images
               }));
 
               setProductImages([...productImages, ...newImages]);
@@ -171,7 +175,6 @@ export function ProductImages({
                     updated[imageIndex] = {
                       ...updated[imageIndex],
                       uploadedUrl: publicUrl,
-                      original_url: publicUrl,
                       storage_path: filePath,
                       isUploading: false,
                     };
@@ -229,11 +232,10 @@ export function ProductImages({
                     </div>
                   )}
 
-                  {/* Primary Badge */}
-                  {image.isPrimary && !image.isUploading && (
-                    <div className="absolute top-2 left-2 bg-primary text-primary-foreground px-2 py-1 rounded text-xs font-semibold flex items-center gap-1">
-                      <Star className="h-3 w-3 fill-current" />
-                      Primary
+                  {/* Display Order Badge */}
+                  {!image.isUploading && (
+                    <div className="absolute top-2 left-2 bg-black/60 text-white px-2 py-1 rounded text-xs font-semibold">
+                      #{index + 1}
                     </div>
                   )}
 
@@ -247,29 +249,7 @@ export function ProductImages({
 
                 {/* Action Buttons */}
                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-4">
-                  <div className="grid grid-cols-2 gap-2">
-                    {/* Set as Primary */}
-                    {!image.isPrimary && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => {
-                          const updated = productImages.map((img, i) => ({
-                            ...img,
-                            isPrimary: i === index,
-                          }));
-                          setProductImages(updated);
-                          setValue("primary_image_url", image.url);
-                          toast.success("Primary image updated");
-                        }}
-                        className="h-10 w-10 p-0"
-                        title="Set as primary"
-                      >
-                        <Star className="h-4 w-4" />
-                      </Button>
-                    )}
-
+                  <div className="flex gap-2">
                     {/* Move Up */}
                     {index > 0 && (
                       <Button
@@ -279,7 +259,12 @@ export function ProductImages({
                         onClick={() => {
                           const updated = [...productImages];
                           [updated[index - 1], updated[index]] = [updated[index], updated[index - 1]];
+                          // Update display order
+                          updated.forEach((img, i) => {
+                            img.displayOrder = i;
+                          });
                           setProductImages(updated);
+                          toast.success("Image order updated");
                         }}
                         className="h-10 w-10 p-0"
                         title="Move up"
@@ -297,7 +282,12 @@ export function ProductImages({
                         onClick={() => {
                           const updated = [...productImages];
                           [updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
+                          // Update display order
+                          updated.forEach((img, i) => {
+                            img.displayOrder = i;
+                          });
                           setProductImages(updated);
+                          toast.success("Image order updated");
                         }}
                         className="h-10 w-10 p-0"
                         title="Move down"
@@ -322,13 +312,10 @@ export function ProductImages({
                           }
 
                           const updated = productImages.filter((_, i) => i !== index);
-
-                          if (image.isPrimary && updated.length > 0) {
-                            updated[0].isPrimary = true;
-                            setValue("primary_image_url", updated[0].url);
-                          } else if (updated.length === 0) {
-                            setValue("primary_image_url", "");
-                          }
+                          // Update display order
+                          updated.forEach((img, i) => {
+                            img.displayOrder = i;
+                          });
 
                           setProductImages(updated);
                           toast.success("Image removed successfully");

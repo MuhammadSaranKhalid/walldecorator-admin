@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "12.2.12 (cd3cf9e)"
+  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -34,113 +39,51 @@ export type Database = {
   }
   public: {
     Tables: {
-      addresses: {
-        Row: {
-          address_line1: string
-          address_line2: string | null
-          address_type: Database["public"]["Enums"]["address_type"] | null
-          city: string
-          company: string | null
-          country: string
-          created_at: string | null
-          customer_id: string
-          first_name: string | null
-          id: string
-          is_default: boolean | null
-          last_name: string | null
-          phone: string | null
-          postal_code: string
-          state: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          address_line1: string
-          address_line2?: string | null
-          address_type?: Database["public"]["Enums"]["address_type"] | null
-          city: string
-          company?: string | null
-          country?: string
-          created_at?: string | null
-          customer_id: string
-          first_name?: string | null
-          id?: string
-          is_default?: boolean | null
-          last_name?: string | null
-          phone?: string | null
-          postal_code: string
-          state?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          address_line1?: string
-          address_line2?: string | null
-          address_type?: Database["public"]["Enums"]["address_type"] | null
-          city?: string
-          company?: string | null
-          country?: string
-          created_at?: string | null
-          customer_id?: string
-          first_name?: string | null
-          id?: string
-          is_default?: boolean | null
-          last_name?: string | null
-          phone?: string | null
-          postal_code?: string
-          state?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "addresses_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "customers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       categories: {
         Row: {
-          created_at: string | null
+          created_at: string
           description: string | null
           display_order: number | null
           id: string
-          image_url: string | null
-          is_active: boolean | null
-          meta_description: string | null
-          meta_title: string | null
+          image_path: string | null
+          is_visible: boolean | null
           name: string
           parent_id: string | null
+          product_count: number | null
+          seo_description: string | null
+          seo_title: string | null
           slug: string
-          updated_at: string | null
+          updated_at: string
         }
         Insert: {
-          created_at?: string | null
+          created_at?: string
           description?: string | null
           display_order?: number | null
           id?: string
-          image_url?: string | null
-          is_active?: boolean | null
-          meta_description?: string | null
-          meta_title?: string | null
+          image_path?: string | null
+          is_visible?: boolean | null
           name: string
           parent_id?: string | null
+          product_count?: number | null
+          seo_description?: string | null
+          seo_title?: string | null
           slug: string
-          updated_at?: string | null
+          updated_at?: string
         }
         Update: {
-          created_at?: string | null
+          created_at?: string
           description?: string | null
           display_order?: number | null
           id?: string
-          image_url?: string | null
-          is_active?: boolean | null
-          meta_description?: string | null
-          meta_title?: string | null
+          image_path?: string | null
+          is_visible?: boolean | null
           name?: string
           parent_id?: string | null
+          product_count?: number | null
+          seo_description?: string | null
+          seo_title?: string | null
           slug?: string
-          updated_at?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -152,108 +95,83 @@ export type Database = {
           },
         ]
       }
-      customers: {
+      discount_codes: {
         Row: {
-          accepts_marketing: boolean | null
-          created_at: string | null
-          email: string
-          first_name: string | null
+          code: string
+          created_at: string
           id: string
-          last_name: string | null
-          phone: string | null
-          total_orders: number | null
-          total_spent: number | null
-          updated_at: string | null
+          is_active: boolean | null
+          minimum_order_amount: number | null
+          type: string
+          updated_at: string
+          usage_count: number | null
+          usage_limit: number | null
+          valid_from: string | null
+          valid_until: string | null
+          value: number
         }
         Insert: {
-          accepts_marketing?: boolean | null
-          created_at?: string | null
-          email: string
-          first_name?: string | null
-          id: string
-          last_name?: string | null
-          phone?: string | null
-          total_orders?: number | null
-          total_spent?: number | null
-          updated_at?: string | null
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          minimum_order_amount?: number | null
+          type: string
+          updated_at?: string
+          usage_count?: number | null
+          usage_limit?: number | null
+          valid_from?: string | null
+          valid_until?: string | null
+          value: number
         }
         Update: {
-          accepts_marketing?: boolean | null
-          created_at?: string | null
-          email?: string
-          first_name?: string | null
+          code?: string
+          created_at?: string
           id?: string
-          last_name?: string | null
-          phone?: string | null
-          total_orders?: number | null
-          total_spent?: number | null
-          updated_at?: string | null
+          is_active?: boolean | null
+          minimum_order_amount?: number | null
+          type?: string
+          updated_at?: string
+          usage_count?: number | null
+          usage_limit?: number | null
+          valid_from?: string | null
+          valid_until?: string | null
+          value?: number
         }
         Relationships: []
       }
-      customization_requests: {
+      discount_usages: {
         Row: {
-          admin_note: string | null
-          created_at: string | null
-          customer_id: string | null
-          description: string
-          email: string
-          estimated_delivery_days: number | null
-          estimated_price: number | null
+          created_at: string
+          discount_applied: number
+          discount_code_id: string
           id: string
-          material_id: string | null
-          order_id: string | null
-          reference_files: string[] | null
-          status: Database["public"]["Enums"]["customization_status"] | null
-          updated_at: string | null
+          order_id: string
         }
         Insert: {
-          admin_note?: string | null
-          created_at?: string | null
-          customer_id?: string | null
-          description: string
-          email: string
-          estimated_delivery_days?: number | null
-          estimated_price?: number | null
+          created_at?: string
+          discount_applied: number
+          discount_code_id: string
           id?: string
-          material_id?: string | null
-          order_id?: string | null
-          reference_files?: string[] | null
-          status?: Database["public"]["Enums"]["customization_status"] | null
-          updated_at?: string | null
+          order_id: string
         }
         Update: {
-          admin_note?: string | null
-          created_at?: string | null
-          customer_id?: string | null
-          description?: string
-          email?: string
-          estimated_delivery_days?: number | null
-          estimated_price?: number | null
+          created_at?: string
+          discount_applied?: number
+          discount_code_id?: string
           id?: string
-          material_id?: string | null
-          order_id?: string | null
-          reference_files?: string[] | null
-          status?: Database["public"]["Enums"]["customization_status"] | null
-          updated_at?: string | null
+          order_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "customization_requests_customer_id_fkey"
-            columns: ["customer_id"]
+            foreignKeyName: "discount_usages_discount_code_id_fkey"
+            columns: ["discount_code_id"]
             isOneToOne: false
-            referencedRelation: "customers"
+            referencedRelation: "discount_codes"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "customization_requests_material_id_fkey"
-            columns: ["material_id"]
-            isOneToOne: false
-            referencedRelation: "materials"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "customization_requests_order_id_fkey"
+            foreignKeyName: "discount_usages_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
@@ -261,90 +179,252 @@ export type Database = {
           },
         ]
       }
-      materials: {
+      email_logs: {
         Row: {
-          base_price_multiplier: number | null
-          color_hex: string | null
-          created_at: string | null
-          density: number | null
-          description: string | null
-          display_order: number | null
+          created_at: string
+          email_type: string
+          error_message: string | null
           id: string
-          image_url: string | null
-          is_active: boolean | null
-          name: string
-          slug: string
-          updated_at: string | null
+          order_id: string | null
+          recipient_email: string
+          resend_id: string | null
+          sent_at: string | null
+          status: string | null
         }
         Insert: {
-          base_price_multiplier?: number | null
-          color_hex?: string | null
-          created_at?: string | null
-          density?: number | null
-          description?: string | null
-          display_order?: number | null
+          created_at?: string
+          email_type: string
+          error_message?: string | null
           id?: string
-          image_url?: string | null
-          is_active?: boolean | null
-          name: string
-          slug: string
-          updated_at?: string | null
+          order_id?: string | null
+          recipient_email: string
+          resend_id?: string | null
+          sent_at?: string | null
+          status?: string | null
         }
         Update: {
-          base_price_multiplier?: number | null
-          color_hex?: string | null
-          created_at?: string | null
-          density?: number | null
-          description?: string | null
-          display_order?: number | null
+          created_at?: string
+          email_type?: string
+          error_message?: string | null
           id?: string
-          image_url?: string | null
+          order_id?: string | null
+          recipient_email?: string
+          resend_id?: string | null
+          sent_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_logs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      homepage_config: {
+        Row: {
+          created_at: string
+          hero_cta_link: string | null
+          hero_cta_text: string | null
+          hero_headline: string | null
+          hero_image_path: string | null
+          hero_subheadline: string | null
+          id: string
+          promo_bg_color: string | null
+          promo_cta_link: string | null
+          promo_cta_text: string | null
+          promo_headline: string | null
+          promo_is_active: boolean | null
+          promo_subheadline: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          hero_cta_link?: string | null
+          hero_cta_text?: string | null
+          hero_headline?: string | null
+          hero_image_path?: string | null
+          hero_subheadline?: string | null
+          id?: string
+          promo_bg_color?: string | null
+          promo_cta_link?: string | null
+          promo_cta_text?: string | null
+          promo_headline?: string | null
+          promo_is_active?: boolean | null
+          promo_subheadline?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          hero_cta_link?: string | null
+          hero_cta_text?: string | null
+          hero_headline?: string | null
+          hero_image_path?: string | null
+          hero_subheadline?: string | null
+          id?: string
+          promo_bg_color?: string | null
+          promo_cta_link?: string | null
+          promo_cta_text?: string | null
+          promo_headline?: string | null
+          promo_is_active?: boolean | null
+          promo_subheadline?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      inventory: {
+        Row: {
+          allow_backorder: boolean | null
+          created_at: string
+          id: string
+          low_stock_threshold: number | null
+          quantity_available: number | null
+          quantity_on_hand: number | null
+          quantity_reserved: number | null
+          updated_at: string
+          variant_id: string
+        }
+        Insert: {
+          allow_backorder?: boolean | null
+          created_at?: string
+          id?: string
+          low_stock_threshold?: number | null
+          quantity_available?: number | null
+          quantity_on_hand?: number | null
+          quantity_reserved?: number | null
+          updated_at?: string
+          variant_id: string
+        }
+        Update: {
+          allow_backorder?: boolean | null
+          created_at?: string
+          id?: string
+          low_stock_threshold?: number | null
+          quantity_available?: number | null
+          quantity_on_hand?: number | null
+          quantity_reserved?: number | null
+          updated_at?: string
+          variant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: true
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_transactions: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          quantity_after: number
+          quantity_before: number
+          quantity_delta: number
+          reference_id: string | null
+          reference_type: string | null
+          type: string
+          variant_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          quantity_after: number
+          quantity_before: number
+          quantity_delta: number
+          reference_id?: string | null
+          reference_type?: string | null
+          type: string
+          variant_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          quantity_after?: number
+          quantity_before?: number
+          quantity_delta?: number
+          reference_id?: string | null
+          reference_type?: string | null
+          type?: string
+          variant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_transactions_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      newsletter_subscribers: {
+        Row: {
+          email: string
+          id: string
+          is_active: boolean | null
+          subscribed_at: string
+          unsubscribed_at: string | null
+        }
+        Insert: {
+          email: string
+          id?: string
           is_active?: boolean | null
-          name?: string
-          slug?: string
-          updated_at?: string | null
+          subscribed_at?: string
+          unsubscribed_at?: string | null
+        }
+        Update: {
+          email?: string
+          id?: string
+          is_active?: boolean | null
+          subscribed_at?: string
+          unsubscribed_at?: string | null
         }
         Relationships: []
       }
       order_items: {
         Row: {
-          created_at: string | null
+          created_at: string
           id: string
-          material_name: string | null
           order_id: string
-          product_id: string | null
-          product_material_id: string | null
           product_name: string
-          product_sku: string | null
           quantity: number
+          sku: string
           total_price: number
           unit_price: number
+          variant_description: string | null
+          variant_id: string | null
         }
         Insert: {
-          created_at?: string | null
+          created_at?: string
           id?: string
-          material_name?: string | null
           order_id: string
-          product_id?: string | null
-          product_material_id?: string | null
           product_name: string
-          product_sku?: string | null
           quantity: number
+          sku: string
           total_price: number
           unit_price: number
+          variant_description?: string | null
+          variant_id?: string | null
         }
         Update: {
-          created_at?: string | null
+          created_at?: string
           id?: string
-          material_name?: string | null
           order_id?: string
-          product_id?: string | null
-          product_material_id?: string | null
           product_name?: string
-          product_sku?: string | null
           quantity?: number
+          sku?: string
           total_price?: number
           unit_price?: number
+          variant_description?: string | null
+          variant_id?: string | null
         }
         Relationships: [
           {
@@ -355,169 +435,311 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "order_items_product_id_fkey"
-            columns: ["product_id"]
+            foreignKeyName: "order_items_variant_id_fkey"
+            columns: ["variant_id"]
             isOneToOne: false
-            referencedRelation: "products"
+            referencedRelation: "product_variants"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      order_status_history: {
+        Row: {
+          changed_by_type: string | null
+          created_at: string
+          from_status: string | null
+          id: string
+          notes: string | null
+          order_id: string
+          to_status: string
+        }
+        Insert: {
+          changed_by_type?: string | null
+          created_at?: string
+          from_status?: string | null
+          id?: string
+          notes?: string | null
+          order_id: string
+          to_status: string
+        }
+        Update: {
+          changed_by_type?: string | null
+          created_at?: string
+          from_status?: string | null
+          id?: string
+          notes?: string | null
+          order_id?: string
+          to_status?: string
+        }
+        Relationships: [
           {
-            foreignKeyName: "order_items_product_material_id_fkey"
-            columns: ["product_material_id"]
+            foreignKeyName: "order_status_history_order_id_fkey"
+            columns: ["order_id"]
             isOneToOne: false
-            referencedRelation: "product_materials"
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]
       }
       orders: {
         Row: {
-          admin_note: string | null
-          billing_address_id: string | null
-          created_at: string | null
-          customer_id: string | null
-          customer_note: string | null
+          billing_address: Json | null
+          cancelled_at: string | null
+          confirmed_at: string | null
+          created_at: string
+          currency: string
+          customer_email: string
+          customer_name: string
+          customer_phone: string
           delivered_at: string | null
           discount_amount: number | null
           id: string
+          ip_address: string | null
+          notes: string | null
           order_number: string
-          paid_at: string | null
+          payment_intent_id: string | null
           payment_method: string | null
           payment_status: string | null
           shipped_at: string | null
-          shipping_address_id: string | null
+          shipping_address: Json
           shipping_cost: number | null
-          shipping_method: string | null
-          status: Database["public"]["Enums"]["order_status"] | null
+          status: string | null
           subtotal: number
           tax_amount: number | null
-          total: number
-          tracking_number: string | null
-          updated_at: string | null
+          total_amount: number
+          updated_at: string
+          user_agent: string | null
         }
         Insert: {
-          admin_note?: string | null
-          billing_address_id?: string | null
-          created_at?: string | null
-          customer_id?: string | null
-          customer_note?: string | null
+          billing_address?: Json | null
+          cancelled_at?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          currency?: string
+          customer_email: string
+          customer_name: string
+          customer_phone: string
           delivered_at?: string | null
           discount_amount?: number | null
           id?: string
+          ip_address?: string | null
+          notes?: string | null
           order_number: string
-          paid_at?: string | null
+          payment_intent_id?: string | null
           payment_method?: string | null
           payment_status?: string | null
           shipped_at?: string | null
-          shipping_address_id?: string | null
+          shipping_address: Json
           shipping_cost?: number | null
-          shipping_method?: string | null
-          status?: Database["public"]["Enums"]["order_status"] | null
+          status?: string | null
           subtotal: number
           tax_amount?: number | null
-          total: number
-          tracking_number?: string | null
-          updated_at?: string | null
+          total_amount: number
+          updated_at?: string
+          user_agent?: string | null
         }
         Update: {
-          admin_note?: string | null
-          billing_address_id?: string | null
-          created_at?: string | null
-          customer_id?: string | null
-          customer_note?: string | null
+          billing_address?: Json | null
+          cancelled_at?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          currency?: string
+          customer_email?: string
+          customer_name?: string
+          customer_phone?: string
           delivered_at?: string | null
           discount_amount?: number | null
           id?: string
+          ip_address?: string | null
+          notes?: string | null
           order_number?: string
-          paid_at?: string | null
+          payment_intent_id?: string | null
           payment_method?: string | null
           payment_status?: string | null
           shipped_at?: string | null
-          shipping_address_id?: string | null
+          shipping_address?: Json
           shipping_cost?: number | null
-          shipping_method?: string | null
-          status?: Database["public"]["Enums"]["order_status"] | null
+          status?: string | null
           subtotal?: number
           tax_amount?: number | null
-          total?: number
-          tracking_number?: string | null
-          updated_at?: string | null
+          total_amount?: number
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
+      payments: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          error_message: string | null
+          id: string
+          order_id: string
+          payment_method_details: Json | null
+          payment_method_type: string | null
+          status: string | null
+          stripe_metadata: Json | null
+          stripe_payment_intent_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          error_message?: string | null
+          id?: string
+          order_id: string
+          payment_method_details?: Json | null
+          payment_method_type?: string | null
+          status?: string | null
+          stripe_metadata?: Json | null
+          stripe_payment_intent_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          error_message?: string | null
+          id?: string
+          order_id?: string
+          payment_method_details?: Json | null
+          payment_method_type?: string | null
+          status?: string | null
+          stripe_metadata?: Json | null
+          stripe_payment_intent_id?: string
+          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "orders_billing_address_id_fkey"
-            columns: ["billing_address_id"]
+            foreignKeyName: "payments_order_id_fkey"
+            columns: ["order_id"]
             isOneToOne: false
-            referencedRelation: "addresses"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orders_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orders_shipping_address_id_fkey"
-            columns: ["shipping_address_id"]
-            isOneToOne: false
-            referencedRelation: "addresses"
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]
+      }
+      product_attribute_values: {
+        Row: {
+          attribute_id: string
+          created_at: string
+          display_name: string
+          display_order: number | null
+          id: string
+          value: string
+        }
+        Insert: {
+          attribute_id: string
+          created_at?: string
+          display_name: string
+          display_order?: number | null
+          id?: string
+          value: string
+        }
+        Update: {
+          attribute_id?: string
+          created_at?: string
+          display_name?: string
+          display_order?: number | null
+          id?: string
+          value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_attribute_values_attribute_id_fkey"
+            columns: ["attribute_id"]
+            isOneToOne: false
+            referencedRelation: "product_attributes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_attributes: {
+        Row: {
+          created_at: string
+          display_name: string
+          display_order: number | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          display_order?: number | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          display_order?: number | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
       }
       product_images: {
         Row: {
           alt_text: string | null
           blurhash: string | null
-          created_at: string | null
+          created_at: string
           display_order: number | null
-          file_size: number | null
-          height: number | null
+          file_size_bytes: number | null
           id: string
           is_primary: boolean | null
-          large_url: string | null
-          medium_url: string | null
-          original_url: string
+          large_path: string | null
+          medium_path: string | null
+          original_height: number | null
+          original_width: number | null
+          processing_error: string | null
+          processing_status: string | null
           product_id: string
-          storage_object_id: string | null
-          thumbnail_url: string | null
-          width: number | null
+          storage_path: string
+          thumbnail_path: string | null
+          updated_at: string
+          variant_id: string | null
         }
         Insert: {
           alt_text?: string | null
           blurhash?: string | null
-          created_at?: string | null
+          created_at?: string
           display_order?: number | null
-          file_size?: number | null
-          height?: number | null
+          file_size_bytes?: number | null
           id?: string
           is_primary?: boolean | null
-          large_url?: string | null
-          medium_url?: string | null
-          original_url: string
+          large_path?: string | null
+          medium_path?: string | null
+          original_height?: number | null
+          original_width?: number | null
+          processing_error?: string | null
+          processing_status?: string | null
           product_id: string
-          storage_object_id?: string | null
-          thumbnail_url?: string | null
-          width?: number | null
+          storage_path: string
+          thumbnail_path?: string | null
+          updated_at?: string
+          variant_id?: string | null
         }
         Update: {
           alt_text?: string | null
           blurhash?: string | null
-          created_at?: string | null
+          created_at?: string
           display_order?: number | null
-          file_size?: number | null
-          height?: number | null
+          file_size_bytes?: number | null
           id?: string
           is_primary?: boolean | null
-          large_url?: string | null
-          medium_url?: string | null
-          original_url?: string
+          large_path?: string | null
+          medium_path?: string | null
+          original_height?: number | null
+          original_width?: number | null
+          processing_error?: string | null
+          processing_status?: string | null
           product_id?: string
-          storage_object_id?: string | null
-          thumbnail_url?: string | null
-          width?: number | null
+          storage_path?: string
+          thumbnail_path?: string | null
+          updated_at?: string
+          variant_id?: string | null
         }
         Relationships: [
           {
@@ -527,67 +749,85 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "product_images_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
         ]
       }
-      product_materials: {
+      product_variants: {
         Row: {
           compare_at_price: number | null
-          cost_price: number | null
-          created_at: string | null
-          finish: string | null
+          cost_per_item: number | null
+          created_at: string
           id: string
-          inventory_quantity: number | null
-          is_available: boolean | null
-          low_stock_threshold: number | null
+          is_default: boolean | null
           material_id: string
           price: number
           product_id: string
-          updated_at: string | null
-          weight_adjustment: number | null
+          size_id: string
+          sku: string
+          thickness_id: string
+          updated_at: string
         }
         Insert: {
           compare_at_price?: number | null
-          cost_price?: number | null
-          created_at?: string | null
-          finish?: string | null
+          cost_per_item?: number | null
+          created_at?: string
           id?: string
-          inventory_quantity?: number | null
-          is_available?: boolean | null
-          low_stock_threshold?: number | null
+          is_default?: boolean | null
           material_id: string
           price: number
           product_id: string
-          updated_at?: string | null
-          weight_adjustment?: number | null
+          size_id: string
+          sku: string
+          thickness_id: string
+          updated_at?: string
         }
         Update: {
           compare_at_price?: number | null
-          cost_price?: number | null
-          created_at?: string | null
-          finish?: string | null
+          cost_per_item?: number | null
+          created_at?: string
           id?: string
-          inventory_quantity?: number | null
-          is_available?: boolean | null
-          low_stock_threshold?: number | null
+          is_default?: boolean | null
           material_id?: string
           price?: number
           product_id?: string
-          updated_at?: string | null
-          weight_adjustment?: number | null
+          size_id?: string
+          sku?: string
+          thickness_id?: string
+          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "product_materials_material_id_fkey"
+            foreignKeyName: "product_variants_material_id_fkey"
             columns: ["material_id"]
             isOneToOne: false
-            referencedRelation: "materials"
+            referencedRelation: "product_attribute_values"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "product_materials_product_id_fkey"
+            foreignKeyName: "product_variants_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_variants_size_id_fkey"
+            columns: ["size_id"]
+            isOneToOne: false
+            referencedRelation: "product_attribute_values"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_variants_thickness_id_fkey"
+            columns: ["thickness_id"]
+            isOneToOne: false
+            referencedRelation: "product_attribute_values"
             referencedColumns: ["id"]
           },
         ]
@@ -595,69 +835,51 @@ export type Database = {
       products: {
         Row: {
           category_id: string | null
-          created_at: string | null
+          created_at: string
           description: string | null
-          dimensions_depth: number | null
-          dimensions_height: number | null
-          dimensions_width: number | null
+          featured_order: number | null
           id: string
-          is_best_seller: boolean | null
           is_featured: boolean | null
-          is_new_arrival: boolean | null
-          meta_description: string | null
-          meta_title: string | null
           name: string
-          primary_image_url: string | null
-          sku: string
+          seo_description: string | null
+          seo_title: string | null
           slug: string
-          status: Database["public"]["Enums"]["product_status"] | null
-          updated_at: string | null
+          status: string | null
+          total_sold: number | null
+          updated_at: string
           view_count: number | null
-          weight: number | null
         }
         Insert: {
           category_id?: string | null
-          created_at?: string | null
+          created_at?: string
           description?: string | null
-          dimensions_depth?: number | null
-          dimensions_height?: number | null
-          dimensions_width?: number | null
+          featured_order?: number | null
           id?: string
-          is_best_seller?: boolean | null
           is_featured?: boolean | null
-          is_new_arrival?: boolean | null
-          meta_description?: string | null
-          meta_title?: string | null
           name: string
-          primary_image_url?: string | null
-          sku: string
+          seo_description?: string | null
+          seo_title?: string | null
           slug: string
-          status?: Database["public"]["Enums"]["product_status"] | null
-          updated_at?: string | null
+          status?: string | null
+          total_sold?: number | null
+          updated_at?: string
           view_count?: number | null
-          weight?: number | null
         }
         Update: {
           category_id?: string | null
-          created_at?: string | null
+          created_at?: string
           description?: string | null
-          dimensions_depth?: number | null
-          dimensions_height?: number | null
-          dimensions_width?: number | null
+          featured_order?: number | null
           id?: string
-          is_best_seller?: boolean | null
           is_featured?: boolean | null
-          is_new_arrival?: boolean | null
-          meta_description?: string | null
-          meta_title?: string | null
           name?: string
-          primary_image_url?: string | null
-          sku?: string
+          seo_description?: string | null
+          seo_title?: string | null
           slug?: string
-          status?: Database["public"]["Enums"]["product_status"] | null
-          updated_at?: string | null
+          status?: string | null
+          total_sold?: number | null
+          updated_at?: string
           view_count?: number | null
-          weight?: number | null
         }
         Relationships: [
           {
@@ -669,65 +891,118 @@ export type Database = {
           },
         ]
       }
+      refunds: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          id: string
+          notes: string | null
+          order_id: string
+          payment_id: string
+          reason: string | null
+          status: string | null
+          stripe_metadata: Json | null
+          stripe_refund_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          id?: string
+          notes?: string | null
+          order_id: string
+          payment_id: string
+          reason?: string | null
+          status?: string | null
+          stripe_metadata?: Json | null
+          stripe_refund_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          notes?: string | null
+          order_id?: string
+          payment_id?: string
+          reason?: string | null
+          status?: string | null
+          stripe_metadata?: Json | null
+          stripe_refund_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "refunds_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refunds_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reviews: {
         Row: {
-          admin_note: string | null
-          comment: string | null
-          created_at: string | null
-          customer_id: string | null
+          body: string | null
+          created_at: string
           helpful_count: number | null
           id: string
           is_approved: boolean | null
           is_verified_purchase: boolean | null
-          order_item_id: string | null
+          order_id: string | null
           product_id: string
           rating: number
+          reviewer_email: string
+          reviewer_name: string
           title: string | null
-          updated_at: string | null
+          updated_at: string
         }
         Insert: {
-          admin_note?: string | null
-          comment?: string | null
-          created_at?: string | null
-          customer_id?: string | null
+          body?: string | null
+          created_at?: string
           helpful_count?: number | null
           id?: string
           is_approved?: boolean | null
           is_verified_purchase?: boolean | null
-          order_item_id?: string | null
+          order_id?: string | null
           product_id: string
           rating: number
+          reviewer_email: string
+          reviewer_name: string
           title?: string | null
-          updated_at?: string | null
+          updated_at?: string
         }
         Update: {
-          admin_note?: string | null
-          comment?: string | null
-          created_at?: string | null
-          customer_id?: string | null
+          body?: string | null
+          created_at?: string
           helpful_count?: number | null
           id?: string
           is_approved?: boolean | null
           is_verified_purchase?: boolean | null
-          order_item_id?: string | null
+          order_id?: string | null
           product_id?: string
           rating?: number
+          reviewer_email?: string
+          reviewer_name?: string
           title?: string | null
-          updated_at?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "reviews_customer_id_fkey"
-            columns: ["customer_id"]
+            foreignKeyName: "reviews_order_id_fkey"
+            columns: ["order_id"]
             isOneToOne: false
-            referencedRelation: "customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reviews_order_item_id_fkey"
-            columns: ["order_item_id"]
-            isOneToOne: false
-            referencedRelation: "order_items"
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
           {
@@ -744,26 +1019,107 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      adjust_inventory: {
+        Args: {
+          p_notes?: string
+          p_quantity_delta: number
+          p_reference_id?: string
+          p_reference_type?: string
+          p_type: string
+          p_variant_id: string
+        }
+        Returns: {
+          allow_backorder: boolean | null
+          created_at: string
+          id: string
+          low_stock_threshold: number | null
+          quantity_available: number | null
+          quantity_on_hand: number | null
+          quantity_reserved: number | null
+          updated_at: string
+          variant_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "inventory"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      calculate_discount_amount: {
+        Args: {
+          p_discount_type: string
+          p_discount_value: number
+          p_order_subtotal: number
+          p_shipping_cost: number
+        }
+        Returns: number
+      }
+      create_order: {
+        Args: {
+          p_billing_address: Json
+          p_cart_items: Json
+          p_customer_email: string
+          p_customer_name: string
+          p_customer_phone: string
+          p_discount_amount?: number
+          p_ip_address?: string
+          p_payment_intent_id: string
+          p_payment_method: string
+          p_shipping_address: Json
+          p_shipping_cost?: number
+          p_tax_rate?: number
+          p_user_agent?: string
+        }
+        Returns: string
+      }
       generate_order_number: { Args: never; Returns: string }
+      generate_variant_sku: {
+        Args: {
+          p_material_id: string
+          p_product_id: string
+          p_size_id: string
+          p_thickness_id: string
+        }
+        Returns: string
+      }
+      get_product_rating: {
+        Args: { p_product_id: string }
+        Returns: {
+          average_rating: number
+          rating_distribution: Json
+          total_reviews: number
+        }[]
+      }
+      increment_product_view_count: {
+        Args: { p_product_id: string }
+        Returns: undefined
+      }
+      is_in_stock: {
+        Args: { p_quantity?: number; p_variant_id: string }
+        Returns: boolean
+      }
+      release_inventory: {
+        Args: { p_cart_id: string; p_quantity: number; p_variant_id: string }
+        Returns: boolean
+      }
+      reserve_inventory: {
+        Args: { p_cart_id: string; p_quantity: number; p_variant_id: string }
+        Returns: boolean
+      }
+      validate_discount_code: {
+        Args: { p_code: string; p_order_total: number }
+        Returns: {
+          discount_id: string
+          discount_type: string
+          discount_value: number
+          error_message: string
+          is_valid: boolean
+        }[]
+      }
     }
     Enums: {
-      address_type: "shipping" | "billing" | "both"
-      customization_status:
-        | "pending"
-        | "in_review"
-        | "approved"
-        | "in_production"
-        | "completed"
-        | "cancelled"
-      order_status:
-        | "pending"
-        | "confirmed"
-        | "processing"
-        | "shipped"
-        | "delivered"
-        | "cancelled"
-        | "refunded"
-      product_status: "active" | "inactive" | "archived" | "draft"
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
@@ -893,27 +1249,6 @@ export const Constants = {
     Enums: {},
   },
   public: {
-    Enums: {
-      address_type: ["shipping", "billing", "both"],
-      customization_status: [
-        "pending",
-        "in_review",
-        "approved",
-        "in_production",
-        "completed",
-        "cancelled",
-      ],
-      order_status: [
-        "pending",
-        "confirmed",
-        "processing",
-        "shipped",
-        "delivered",
-        "cancelled",
-        "refunded",
-      ],
-      product_status: ["active", "inactive", "archived", "draft"],
-    },
+    Enums: {},
   },
 } as const
-

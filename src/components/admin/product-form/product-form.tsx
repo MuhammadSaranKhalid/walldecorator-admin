@@ -4,23 +4,21 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useCreate, useUpdate, useCreateMany } from "@refinedev/core";
-import { useForm } from "@refinedev/react-hook-form";
-import { FormProvider } from "react-hook-form";
+import { useForm, FormProvider } from "react-hook-form";
+import { useOne } from "@refinedev/core";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabaseBrowserClient } from "@/utils/supabase/client";
 
-import { formSchema, FormValues, ProductImage } from "./types";
+import { formSchema, FormValues } from "./types";
 import { BasicInformation } from "./basic-information";
 import { SEOFields } from "./seo-fields";
 import { ProductImages } from "./product-images";
 import { ProductSettings } from "./product-settings";
-import { MaterialsPricing } from "./materials-pricing";
-import { DimensionsWeight } from "./dimensions-weight";
+import { ProductVariants } from "./product-variants";
 import { DisplayOptions } from "./display-options";
+import { createProduct, updateProduct } from "@/app/admin/products/actions";
 
 interface ProductFormProps {
   mode: "create" | "edit";
@@ -30,68 +28,52 @@ interface ProductFormProps {
 export function ProductForm({ mode, productId }: ProductFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [productImages, setProductImages] = useState<ProductImage[]>([]);
   const isEditMode = mode === "edit";
 
-
-  // Refine's useForm - integrates React Hook Form with Refine's data management
+  // Fetch product data for edit mode
   const {
-    refineCore: { query, formLoading, onFinish },
-    ...methods
-  } = useForm<FormValues>({
-    refineCoreProps: {
-      resource: "products",
-      action: isEditMode ? "edit" : "create",
-      id: productId,
-      redirect: false,
-      meta: {
-        select: `
-          *,
-          product_materials (
-            id, material_id, price, compare_at_price, cost_price,
-            inventory_quantity, low_stock_threshold, finish, is_available
-          ),
-          product_images (
-            id, original_url, thumbnail_url, medium_url, large_url,
-            alt_text, is_primary, display_order, blurhash
-          )
-        `,
-      },
+    result: existingProduct,
+    query: { isLoading: productLoading },
+  } = useOne({
+    resource: "products",
+    id: productId || "",
+    queryOptions: {
+      enabled: isEditMode && !!productId,
     },
+    meta: {
+      select: `
+        *,
+        product_variants (
+          id, sku, material_id, size_id, thickness_id, price,
+          compare_at_price, cost_per_item, is_default
+        ),
+        product_images (
+          id, storage_path, thumbnail_path, medium_path, large_path,
+          alt_text, display_order, blurhash, processing_status
+        )
+      `,
+    },
+  });
+
+  // React Hook Form
+  const methods = useForm<FormValues>({
     resolver: zodResolver(formSchema) as any,
     defaultValues: {
       name: "",
       slug: "",
-      sku: "",
       description: "",
       category_id: "",
-      primary_image_url: "",
-      status: "active",
-      materials: [],
-      materialPricing: {},
-      dimensions_width: 0,
-      dimensions_height: 0,
-      dimensions_depth: 0,
-      weight: 0,
+      status: "draft",
+      variants: [],
+      images: [],
       is_featured: false,
-      is_new_arrival: false,
-      is_best_seller: false,
-      meta_title: "",
-      meta_description: "",
+      seo_title: "",
+      seo_description: "",
     },
   });
 
-  const { handleSubmit, setValue, reset } = methods
-
-  // Extract existing product data from Refine's query
-  const existingProduct = query?.data?.data;
-  const productLoading = formLoading;
-
-  // Hooks for creating/updating related records (Edit Mode only)
-  // Hooks for creating/updating related records (Edit Mode only)
-  const { mutateAsync: createProductMaterials } = useCreateMany();
-  const { mutateAsync: createProductImages } = useCreateMany();
-  const { mutateAsync: updateProduct } = useUpdate();
+  const { handleSubmit, setValue, reset, watch } = methods;
+  const productImages = watch("images") || [];
 
   // Unsaved changes warning
   useEffect(() => {
@@ -110,56 +92,45 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
     if (isEditMode && existingProduct) {
       const product = existingProduct as any;
 
+      const images = product.product_images && product.product_images.length > 0
+        ? product.product_images
+          .sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))
+          .map((img: any, index: number) => ({
+            url: img.thumbnail_path || img.medium_path || img.large_path || img.storage_path,
+            uploadedUrl: img.storage_path,
+            thumbnailPath: img.thumbnail_path,
+            mediumPath: img.medium_path,
+            largePath: img.large_path,
+            storage_path: img.storage_path,
+            blurhash: img.blurhash,
+            altText: img.alt_text,
+            displayOrder: img.display_order || index,
+            isUploading: false,
+            dbImageId: img.id,
+            is_primary: img.is_primary || false,
+          }))
+        : [];
+
       reset({
         name: product.name || "",
         slug: product.slug || "",
-        sku: product.sku || "",
         description: product.description || "",
         category_id: product.category_id || "",
-        primary_image_url: product.primary_image_url || "",
-        status: product.status || "active",
-        materials: product.product_materials?.map((pm: any) => pm.material_id) || [],
-        materialPricing:
-          product.product_materials?.reduce((acc: any, pm: any) => {
-            acc[pm.material_id] = {
-              price: pm.price,
-              inventory: pm.inventory_quantity,
-              lowStockThreshold: pm.low_stock_threshold,
-              finish: pm.finish || "",
-              compareAtPrice: pm.compare_at_price,
-              costPrice: pm.cost_price,
-            };
-            return acc;
-          }, {}) || {},
-        dimensions_width: product.dimensions_width || 0,
-        dimensions_height: product.dimensions_height || 0,
-        dimensions_depth: product.dimensions_depth || 0,
-        weight: product.weight || 0,
+        status: product.status || "draft",
+        variants: product.product_variants?.map((variant: any) => ({
+          material_id: variant.material_id,
+          size_id: variant.size_id,
+          thickness_id: variant.thickness_id,
+          price: variant.price,
+          compare_at_price: variant.compare_at_price,
+          cost_per_item: variant.cost_per_item,
+          is_default: variant.is_default || false,
+        })) || [],
+        images: images,
         is_featured: product.is_featured || false,
-        is_new_arrival: product.is_new_arrival || false,
-        is_best_seller: product.is_best_seller || false,
-        meta_title: product.meta_title || "",
-        meta_description: product.meta_description || "",
+        seo_title: product.seo_title || "",
+        seo_description: product.seo_description || "",
       });
-
-      // Set product images
-      if (product.product_images && product.product_images.length > 0) {
-        const images = product.product_images
-          .sort((a: any, b: any) => a.display_order - b.display_order)
-          .map((img: any) => ({
-            url: img.original_url || img.thumbnail_url || img.medium_url || img.large_url,
-            uploadedUrl: img.original_url,
-            thumbnailUrl: img.thumbnail_url,
-            mediumUrl: img.medium_url,
-            largeUrl: img.large_url,
-            blurhash: img.blurhash,
-            altText: img.alt_text,
-            isPrimary: img.is_primary,
-            isUploading: false,
-            dbImageId: img.id,
-          }));
-        setProductImages(images);
-      }
     }
   }, [isEditMode, existingProduct, reset]);
 
@@ -170,236 +141,72 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
   };
 
 
-
-  // Helper function to generate material-specific SKU suffix
-  const getMaterialSuffix = (materialName: string): string => {
-    const suffixes: { [key: string]: string } = {
-      acrylic: "ACR",
-      steel: "STL",
-      iron: "IRN",
-      wood: "WD",
-      brass: "BRS",
-      copper: "CPR",
-      aluminum: "ALU",
-      glass: "GLS",
-      ceramic: "CER",
-      metal: "MTL",
-    };
-
-    const lowerName = materialName.toLowerCase();
-    if (suffixes[lowerName]) {
-      return suffixes[lowerName];
-    }
-
-    return materialName.toUpperCase().replace(/[^A-Z]/g, "").substring(0, 3);
-  };
-
-
   const onSubmit = async (values: FormValues) => {
+    console.log(values)
     setIsSubmitting(true);
     try {
-      if (productImages.length === 0) {
-        toast.error("Please upload at least one product image");
-        setIsSubmitting(false);
-        return;
-      }
+      const uploadedImages = values.images.map((image, i) => ({
+        storage_path: image.uploadedUrl || image.url,
+        display_order: i,
+        blurhash: image.blurhash,
+        thumbnail_path: image.thumbnailPath,
+        medium_path: image.mediumPath,
+        large_path: image.largePath,
+        alt_text: image.altText,
+        is_primary: image.is_primary ?? (i === 0), // Use existing is_primary or default to first image
+      }));
 
-      const stillUploading = productImages.some((img) => img.isUploading);
-      if (stillUploading) {
-        toast.error("Please wait for all images to finish uploading");
-        setIsSubmitting(false);
-        return;
-      }
-
-      const uploadedImages = productImages.map((image, i) => {
-        return {
-          url: image.uploadedUrl || image.url,
-          isPrimary: image.isPrimary,
-          displayOrder: i,
-          blurhash: image.blurhash,
-          thumbnailUrl: image.thumbnailUrl,
-          mediumUrl: image.mediumUrl,
-          largeUrl: image.largeUrl,
-          altText: image.altText,
-        };
-      });
-
-      const { materials, materialPricing, ...productData } = values;
-
-      const primaryImage = uploadedImages.find((img) => img.isPrimary);
-
-      const cleanedProductData = Object.fromEntries(
-        Object.entries(productData)
-          .map(([key, value]) => [key, value === "" ? null : value])
-          .filter(([_, value]) => value !== null && value !== undefined)
-      );
+      const { variants, images, ...productData } = values;
 
       if (isEditMode && productId) {
-        await updateProduct({
-          resource: "products",
+        // Update the product using server action
+        const result = await updateProduct({
           id: productId,
-          values: {
-            ...cleanedProductData,
-            primary_image_url: primaryImage?.url || uploadedImages[0].url,
-          },
+          name: productData.name,
+          slug: productData.slug,
+          description: productData.description,
+          category_id: productData.category_id || null,
+          status: productData.status,
+          is_featured: productData.is_featured,
+          seo_title: productData.seo_title || null,
+          seo_description: productData.seo_description || null,
+          variants: variants || [],
+          images: uploadedImages,
         });
 
-        const existingMaterials = (existingProduct as any)?.product_materials || [];
-        if (existingMaterials.length > 0) {
-          await Promise.all(
-            existingMaterials.map((pm: any) =>
-              supabaseBrowserClient.from("product_materials").delete().eq("id", pm.id)
-            )
-          );
-        }
-
-        if (materials && materials.length > 0) {
-          const materialsData = materials.map((materialId) => {
-            const pricing = (materialPricing as any)?.[materialId] || {
-              price: 0,
-              inventory: 0,
-              lowStockThreshold: 10,
-              finish: "",
-              compareAtPrice: 0,
-              costPrice: 0,
-            };
-            return {
-              product_id: productId,
-              material_id: materialId,
-              price: pricing.price,
-              compare_at_price: pricing.compareAtPrice || null,
-              cost_price: pricing.costPrice || null,
-              inventory_quantity: pricing.inventory,
-              low_stock_threshold: pricing.lowStockThreshold || 10,
-              finish: pricing.finish || null,
-              is_available: true,
-            };
-          });
-
-          await createProductMaterials({
-            resource: "product_materials",
-            values: materialsData,
-          });
-        }
-
-        const existingImages = (existingProduct as any)?.product_images || [];
-        if (existingImages.length > 0) {
-          await Promise.all(
-            existingImages.map((img: any) =>
-              supabaseBrowserClient.from("product_images").delete().eq("id", img.id)
-            )
-          );
-        }
-
-        if (uploadedImages.length > 0) {
-          const imagesData = uploadedImages.map((image) => ({
-            product_id: productId,
-            original_url: image.url,
-            thumbnail_url: image.thumbnailUrl || null,
-            medium_url: image.mediumUrl || null,
-            large_url: image.largeUrl || null,
-            is_primary: image.isPrimary,
-            display_order: image.displayOrder,
-            blurhash: image.blurhash || null,
-            alt_text: image.altText || null,
-          }));
-
-          await createProductImages({
-            resource: "product_images",
-            values: imagesData,
-          });
+        if (!result.success) {
+          toast.error(result.error || "Failed to update product");
+          setIsSubmitting(false);
+          return;
         }
 
         toast.success(`Product "${values.name}" updated successfully!`);
         router.push("/admin/products");
       } else {
-        // 1. Create Product (Base data only)
-        const productResult = await onFinish({
-          ...cleanedProductData,
-          primary_image_url: primaryImage?.url || uploadedImages[0].url,
+        // Create the product using server action
+        const result = await createProduct({
+          name: productData.name,
+          slug: productData.slug,
+          description: productData.description,
+          category_id: productData.category_id || null,
+          status: productData.status,
+          is_featured: productData.is_featured,
+          seo_title: productData.seo_title || null,
+          seo_description: productData.seo_description || null,
+          variants: variants || [],
+          images: uploadedImages,
         });
 
-        // The onFinish result might not directly return the ID if redirect is false, 
-        // but typically it returns the response. 
-        // Refine's onFinish returns a Promise that resolves to UpdateResponse<TData> | CreateResponse<TData>
-        // We need the ID.
-
-        // However, onFinish with useForm is a bit tricky to get the ID back immediately if we want to chain.
-        // A better approach for sequential creation with ID dependency is to use `useCreate` directly for the product,
-        // OR rely on `onMutationSuccess` callback.
-
-        // But since we are inside onSubmit, we want to await.
-        // Let's assume onFinish returns the result. 
-        // If not, we might need to use `createProduct` hook instead of `onFinish` for the parent to get the ID surely.
-
-        // Actually, let's revert to using `useCreate` for the product in Create mode too, 
-        // so we have full control over the transaction order and can get the ID.
-        // The user asked to use `onFinish`, but `onFinish` is best for simple forms.
-        // With manual relations, explicit `create` is safer.
-
-        // WAIT. Refine's `onFinish` does return the result!
-        const newProductId = (productResult as any)?.data?.id;
-
-        if (newProductId) {
-          // 2. Create Materials
-          if (materials && materials.length > 0) {
-            const materialsData = materials.map((materialId) => {
-              const pricing = (materialPricing as any)?.[materialId] || {
-                price: 0,
-                inventory: 0,
-                lowStockThreshold: 10,
-                finish: "",
-                compareAtPrice: 0,
-                costPrice: 0,
-              };
-              return {
-                product_id: newProductId,
-                material_id: materialId,
-                price: pricing.price,
-                compare_at_price: pricing.compareAtPrice || null,
-                cost_price: pricing.costPrice || null,
-                inventory_quantity: pricing.inventory,
-                low_stock_threshold: pricing.lowStockThreshold || 10,
-                finish: pricing.finish || null,
-                is_available: true,
-              };
-            });
-
-            await createProductMaterials({
-              resource: "product_materials",
-              values: materialsData,
-            });
-          }
-
-          // 3. Create Images
-          if (uploadedImages.length > 0) {
-            const imagesData = uploadedImages.map((image) => ({
-              product_id: newProductId,
-              original_url: image.url,
-              thumbnail_url: image.thumbnailUrl || null,
-              medium_url: image.mediumUrl || null,
-              large_url: image.largeUrl || null,
-              is_primary: image.isPrimary,
-              display_order: image.displayOrder,
-              blurhash: image.blurhash || null,
-              alt_text: image.altText || null,
-            }));
-
-            await createProductImages({
-              resource: "product_images",
-              values: imagesData,
-            });
-          }
+        if (!result.success) {
+          toast.error(result.error || "Failed to create product");
+          setIsSubmitting(false);
+          return;
         }
 
-        // Manually show success and redirect because we used redirect: false in useForm
-        toast.success(
-          `Product "${values.name}" created successfully!`
-        );
+        toast.success(`Product "${values.name}" created successfully!`);
         router.push("/admin/products");
       }
 
-      setProductImages([]);
       reset();
     } catch (error: any) {
       toast.error(
@@ -429,18 +236,11 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
           <SEOFields />
         </BasicInformation>
 
-        <ProductImages
-          productImages={productImages}
-          setProductImages={setProductImages}
-        />
+        <ProductImages />
 
         <ProductSettings />
 
-        <MaterialsPricing
-          getMaterialSuffix={getMaterialSuffix}
-        />
-
-        <DimensionsWeight />
+        <ProductVariants />
 
         <DisplayOptions />
 

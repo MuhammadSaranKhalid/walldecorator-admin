@@ -28,44 +28,8 @@ export function DisplayOptions() {
               <div className="space-y-1 leading-none">
                 <FieldLabel>Featured Product</FieldLabel>
                 <FieldDescription>
-                  Display this product in the featured section
+                  Display this product in the featured section on the homepage
                 </FieldDescription>
-              </div>
-            </div>
-          )}
-        />
-
-        <Controller
-          name="is_new_arrival"
-          control={control}
-          render={({ field, fieldState }) => (
-            <div className="flex flex-row items-start space-x-3">
-              <Checkbox
-                checked={field.value}
-                onCheckedChange={field.onChange}
-                aria-invalid={fieldState.invalid}
-              />
-              <div className="space-y-1 leading-none">
-                <FieldLabel>New Arrival</FieldLabel>
-                <FieldDescription>Mark as a new arrival product</FieldDescription>
-              </div>
-            </div>
-          )}
-        />
-
-        <Controller
-          name="is_best_seller"
-          control={control}
-          render={({ field, fieldState }) => (
-            <div className="flex flex-row items-start space-x-3">
-              <Checkbox
-                checked={field.value}
-                onCheckedChange={field.onChange}
-                aria-invalid={fieldState.invalid}
-              />
-              <div className="space-y-1 leading-none">
-                <FieldLabel>Best Seller</FieldLabel>
-                <FieldDescription>Mark as a best seller product</FieldDescription>
               </div>
             </div>
           )}
