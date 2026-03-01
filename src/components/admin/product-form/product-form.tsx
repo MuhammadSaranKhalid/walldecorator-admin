@@ -1,7 +1,5 @@
 "use client";
 
-
-
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, FormProvider } from "react-hook-form";
@@ -60,7 +58,6 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
     resolver: zodResolver(formSchema) as any,
     defaultValues: {
       name: "",
-      slug: "",
       description: "",
       category_id: "",
       status: "draft",
@@ -113,7 +110,6 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
 
       reset({
         name: product.name || "",
-        slug: product.slug || "",
         description: product.description || "",
         category_id: product.category_id || "",
         status: product.status || "draft",
@@ -134,19 +130,13 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
     }
   }, [isEditMode, existingProduct, reset]);
 
-  // Auto-generate slug from name
-  const handleNameChange = (value: string) => {
-    const slug = value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-    setValue("slug", slug);
-  };
-
 
   const onSubmit = async (values: FormValues) => {
     console.log(values)
     setIsSubmitting(true);
     try {
       const uploadedImages = values.images.map((image, i) => ({
-        storage_path: image.uploadedUrl || image.url,
+        storage_path: image.storage_path || image.uploadedUrl || image.url,
         display_order: i,
         blurhash: image.blurhash,
         thumbnail_path: image.thumbnailPath,
@@ -163,7 +153,6 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
         const result = await updateProduct({
           id: productId,
           name: productData.name,
-          slug: productData.slug,
           description: productData.description,
           category_id: productData.category_id || null,
           status: productData.status,
@@ -186,7 +175,6 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
         // Create the product using server action
         const result = await createProduct({
           name: productData.name,
-          slug: productData.slug,
           description: productData.description,
           category_id: productData.category_id || null,
           status: productData.status,
@@ -230,9 +218,7 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
   return (
     <FormProvider {...methods}>
       <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-6">
-        <BasicInformation
-          handleNameChange={handleNameChange}
-        >
+        <BasicInformation>
           <SEOFields />
         </BasicInformation>
 

@@ -13,7 +13,6 @@ export type Category = Database["public"]["Tables"]["categories"]["Row"];
 
 export const formSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters"),
-  slug: z.string().min(3, "Slug must be at least 3 characters"),
   description: z.string().min(10, "Description must be at least 10 characters"),
   category_id: z.string().nullable().optional().or(z.literal("")),
   status: z.enum(["draft", "active", "archived"]),
