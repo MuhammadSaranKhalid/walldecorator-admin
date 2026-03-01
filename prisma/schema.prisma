@@ -230,6 +230,7 @@ model orders {
   cancelled_at         DateTime?              @db.Timestamptz(6)
   created_at           DateTime               @default(now()) @db.Timestamptz(6)
   updated_at           DateTime               @default(now()) @db.Timestamptz(6)
+  custom_orders        custom_orders[]
   discount_usages      discount_usages[]
   email_logs           email_logs[]
   order_items          order_items[]
@@ -332,7 +333,7 @@ model product_images {
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model product_variants {
   id                                                                               String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  product_id                                                                       String                   @unique(map: "idx_product_variants_default", where: raw("(is_default = true)")) @db.Uuid
+  product_id                                                                       String                   @db.Uuid
   sku                                                                              String                   @unique
   material_id                                                                      String                   @db.Uuid
   size_id                                                                          String                   @db.Uuid
@@ -353,6 +354,7 @@ model product_variants {
   product_attribute_values_product_variants_thickness_idToproduct_attribute_values product_attribute_values @relation("product_variants_thickness_idToproduct_attribute_values", fields: [thickness_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([product_id, material_id, size_id, thickness_id])
+  @@unique([product_id], map: "idx_product_variants_default", where: raw("(is_default = true)"))
   @@index([material_id], map: "idx_product_variants_material")
   @@index([price], map: "idx_product_variants_price")
   @@index([product_id], map: "idx_product_variants_product_id")
@@ -441,4 +443,32 @@ model reviews {
   @@index([product_id], map: "idx_reviews_product_id")
   @@index([product_id, rating], map: "idx_reviews_rating")
   @@index([product_id, is_verified_purchase], map: "idx_reviews_verified", where: raw("(is_verified_purchase = true)"))
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model custom_orders {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  customer_name       String
+  customer_email      String
+  customer_phone      String?
+  image_url           String
+  description         String?
+  preferred_material  String?
+  preferred_size      String?
+  preferred_thickness String?
+  status              String    @default("pending")
+  admin_notes         String?
+  quoted_price        Decimal?  @db.Decimal(10, 2)
+  quoted_at           DateTime? @db.Timestamptz(6)
+  order_id            String?   @db.Uuid
+  created_at          DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime  @default(now()) @db.Timestamptz(6)
+  orders              orders?   @relation(fields: [order_id], references: [id], onUpdate: NoAction)
+
+  @@index([created_at(sort: Desc)], map: "idx_custom_orders_created_at")
+  @@index([customer_email], map: "idx_custom_orders_email")
+  @@index([order_id], map: "idx_custom_orders_order_id")
+  @@index([status, created_at(sort: Desc)], map: "idx_custom_orders_status")
 }

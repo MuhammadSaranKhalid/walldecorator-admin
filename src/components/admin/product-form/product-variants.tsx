@@ -249,7 +249,7 @@ export function ProductVariants() {
                   control={control}
                   render={({ field: controllerField, fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel>Price ($) *</FieldLabel>
+                      <FieldLabel>Price (Rs.) *</FieldLabel>
                       <Input
                         {...controllerField}
                         type="number"
@@ -270,7 +270,7 @@ export function ProductVariants() {
                   control={control}
                   render={({ field: controllerField, fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel>Compare at Price ($)</FieldLabel>
+                      <FieldLabel>Compare at Price (Rs.)</FieldLabel>
                       <Input
                         {...controllerField}
                         type="number"
@@ -297,7 +297,7 @@ export function ProductVariants() {
                   control={control}
                   render={({ field: controllerField, fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel>Cost per Item ($)</FieldLabel>
+                      <FieldLabel>Cost per Item (Rs.)</FieldLabel>
                       <Input
                         {...controllerField}
                         type="number"

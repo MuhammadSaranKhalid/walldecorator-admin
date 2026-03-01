@@ -1,113 +1,72 @@
-"use client";
-
-import { useState } from "react";
-import { RefreshCw, Search, ChevronDown, Package } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
+import prisma from "@/lib/prisma";
+import { Search, Package, MapPin, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import Link from "next/link";
+import { format } from "date-fns";
+import { ReactNode } from "react";
 
-// Mock customization requests data
-const mockRequests = [
-  {
-    id: "CUST-1052",
-    dateSubmitted: "Oct 26, 2023",
-    customerEmail: "user@email.com",
-    material: "Steel",
-    status: "new",
-  },
-  {
-    id: "CUST-1051",
-    dateSubmitted: "Oct 25, 2023",
-    customerEmail: "another.user@email.com",
-    material: "Wood",
-    status: "processing",
-  },
-  {
-    id: "CUST-1050",
-    dateSubmitted: "Oct 25, 2023",
-    customerEmail: "customer@email.com",
-    material: "Acrylic",
-    status: "completed",
-  },
-  {
-    id: "CUST-1049",
-    dateSubmitted: "Oct 24, 2023",
-    customerEmail: "test@email.com",
-    material: "Iron",
-    status: "reviewed",
-  },
-  {
-    id: "CUST-1048",
-    dateSubmitted: "Oct 23, 2023",
-    customerEmail: "example@email.com",
-    material: "Steel",
-    status: "rejected",
-  },
-];
+// For revalidating path and fetching fresh data
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
-const statusConfig = {
-  new: {
-    label: "New",
+const statusConfig: Record<string, { label: string; className: string }> = {
+  pending: {
+    label: "Pending",
     className: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300",
   },
-  processing: {
-    label: "Processing",
+  reviewing: {
+    label: "Reviewing",
     className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300",
+  },
+  quoted: {
+    label: "Quoted",
+    className: "bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300",
+  },
+  approved: {
+    label: "Approved",
+    className: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300",
+  },
+  in_production: {
+    label: "In Production",
+    className: "bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300",
+  },
+  shipped: {
+    label: "Shipped",
+    className: "bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300",
   },
   completed: {
     label: "Completed",
     className: "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300",
   },
-  reviewed: {
-    label: "Reviewed",
-    className: "bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300",
-  },
-  rejected: {
-    label: "Rejected",
+  cancelled: {
+    label: "Cancelled",
     className: "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300",
   },
 };
 
-export default function CustomizationsPage() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [materialFilter, setMaterialFilter] = useState("all");
-  const [sortBy, setSortBy] = useState("newest");
-  const [selectedRequests, setSelectedRequests] = useState<string[]>([]);
+export default async function CustomOrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ query?: string }>;
+}) {
+  const params = await searchParams;
+  const query = params?.query || "";
 
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedRequests(mockRequests.map(r => r.id));
-    } else {
-      setSelectedRequests([]);
-    }
-  };
+  // Fetch from database
+  const customOrders = await prisma.custom_orders.findMany({
+    where: {
+      OR: [
+        { customer_email: { contains: query, mode: "insensitive" } },
+        { customer_name: { contains: query, mode: "insensitive" } },
+      ],
+    },
+    orderBy: { created_at: "desc" },
+    take: 50, // simple pagination for now
+  });
 
-  const handleSelectRequest = (requestId: string, checked: boolean) => {
-    if (checked) {
-      setSelectedRequests([...selectedRequests, requestId]);
-    } else {
-      setSelectedRequests(selectedRequests.filter(id => id !== requestId));
-    }
-  };
-
-  const handleRefresh = () => {
-    // Refresh logic would go here
-    console.log("Refreshing customization requests...");
-  };
-
-  // Check if there are no requests (for empty state)
-  const hasRequests = mockRequests.length > 0;
+  const hasRequests = customOrders.length > 0;
 
   return (
     <div>
@@ -115,75 +74,27 @@ export default function CustomizationsPage() {
       <div className="flex flex-wrap justify-between items-center gap-4">
         <div className="flex flex-col gap-2">
           <h1 className="text-3xl md:text-4xl font-black leading-tight tracking-tight">
-            Customization Requests
+            Custom Orders
           </h1>
           <p className="text-muted-foreground text-base">
-            Manage and respond to all incoming custom decor requests.
+            Review customer photos and quote prices for custom wall art.
           </p>
         </div>
-        <Button
-          variant="outline"
-          className="font-bold"
-          onClick={handleRefresh}
-        >
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
       </div>
 
-      {/* Filters & Search */}
-      <div className="mt-8 flex flex-col md:flex-row gap-4">
-        {/* Search Bar */}
-        <div className="flex-grow relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by customer email or request ID..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 h-10"
-          />
-        </div>
-
-        {/* Filter Chips */}
-        <div className="flex gap-3 overflow-x-auto">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[140px] h-10">
-              <SelectValue placeholder="Status: All" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Status: All</SelectItem>
-              <SelectItem value="new">New</SelectItem>
-              <SelectItem value="processing">Processing</SelectItem>
-              <SelectItem value="reviewed">Reviewed</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={materialFilter} onValueChange={setMaterialFilter}>
-            <SelectTrigger className="w-[150px] h-10">
-              <SelectValue placeholder="Material: All" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Material: All</SelectItem>
-              <SelectItem value="steel">Steel</SelectItem>
-              <SelectItem value="wood">Wood</SelectItem>
-              <SelectItem value="acrylic">Acrylic</SelectItem>
-              <SelectItem value="iron">Iron</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-[160px] h-10">
-              <SelectValue placeholder="Sort by: Newest" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="newest">Sort by: Newest</SelectItem>
-              <SelectItem value="oldest">Sort by: Oldest</SelectItem>
-              <SelectItem value="status">Sort by: Status</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      {/* Filters & Search - simple form that submits to current page */}
+      <div className="mt-8">
+        <form method="GET" action="/admin/customizations" className="flex flex-col md:flex-row gap-4">
+          <div className="w-full md:w-[400px] relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              name="query"
+              defaultValue={query}
+              placeholder="Search email or name..."
+              className="pl-10 h-10"
+            />
+          </div>
+        </form>
       </div>
 
       {/* Table */}
@@ -195,41 +106,16 @@ export default function CustomizationsPage() {
                 <table className="min-w-full divide-y divide-border">
                   <thead className="bg-muted/50">
                     <tr>
-                      <th className="relative px-6 sm:w-12 sm:px-8" scope="col">
-                        <Checkbox
-                          checked={selectedRequests.length === mockRequests.length}
-                          onCheckedChange={handleSelectAll}
-                          className="absolute left-4 top-1/2 -translate-y-1/2"
-                        />
+                      <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold sm:pl-6" scope="col">
+                        Date
                       </th>
-                      <th
-                        className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold sm:pl-6"
-                        scope="col"
-                      >
-                        Request ID
+                      <th className="px-3 py-3.5 text-left text-sm font-semibold" scope="col">
+                        Customer
                       </th>
-                      <th
-                        className="px-3 py-3.5 text-left text-sm font-semibold"
-                        scope="col"
-                      >
-                        Date Submitted
+                      <th className="px-3 py-3.5 text-left text-sm font-semibold" scope="col">
+                        Preferences
                       </th>
-                      <th
-                        className="px-3 py-3.5 text-left text-sm font-semibold"
-                        scope="col"
-                      >
-                        Customer Email
-                      </th>
-                      <th
-                        className="px-3 py-3.5 text-left text-sm font-semibold"
-                        scope="col"
-                      >
-                        Material
-                      </th>
-                      <th
-                        className="px-3 py-3.5 text-left text-sm font-semibold"
-                        scope="col"
-                      >
+                      <th className="px-3 py-3.5 text-left text-sm font-semibold" scope="col">
                         Status
                       </th>
                       <th className="relative py-3.5 pl-3 pr-4 sm:pr-6" scope="col">
@@ -238,30 +124,29 @@ export default function CustomizationsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {mockRequests.map((request) => {
-                      const status = statusConfig[request.status as keyof typeof statusConfig];
+                    {customOrders.map((order) => {
+                      const status = statusConfig[order.status] || {
+                        label: order.status,
+                        className: "bg-gray-100 text-gray-800",
+                      };
+
                       return (
-                        <tr key={request.id} className="hover:bg-muted/50 transition-colors">
-                          <td className="relative px-7 sm:w-12 sm:px-8">
-                            <Checkbox
-                              checked={selectedRequests.includes(request.id)}
-                              onCheckedChange={(checked) =>
-                                handleSelectRequest(request.id, checked as boolean)
-                              }
-                              className="absolute left-4 top-1/2 -translate-y-1/2"
-                            />
-                          </td>
+                        <tr key={order.id} className="hover:bg-muted/50 transition-colors">
                           <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6">
-                            #{request.id}
+                            {format(new Date(order.created_at), "MMM d, yyyy")}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm">
+                            <div className="font-medium text-foreground">{order.customer_name}</div>
+                            <div className="text-muted-foreground">{order.customer_email}</div>
                           </td>
                           <td className="whitespace-nowrap px-3 py-4 text-sm text-muted-foreground">
-                            {request.dateSubmitted}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-muted-foreground">
-                            {request.customerEmail}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-muted-foreground">
-                            {request.material}
+                            {order.preferred_material ? (
+                              <Badge variant="outline" className="capitalize">
+                                {order.preferred_material}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground/60">—</span>
+                            )}
                           </td>
                           <td className="whitespace-nowrap px-3 py-4 text-sm">
                             <Badge variant="secondary" className={status.className}>
@@ -270,11 +155,11 @@ export default function CustomizationsPage() {
                           </td>
                           <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                             <Link
-                              href={`/admin/customizations/${request.id}`}
-                              className="text-primary hover:text-primary/80"
+                              href={`/admin/customizations/${order.id}`}
+                              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-9 px-3"
                             >
-                              View Details
-                              <span className="sr-only">, #{request.id}</span>
+                              <Eye className="mr-2 h-4 w-4" />
+                              View
                             </Link>
                           </td>
                         </tr>
@@ -292,13 +177,14 @@ export default function CustomizationsPage() {
           <div className="flex justify-center">
             <Package className="h-16 w-16 text-muted-foreground/50" />
           </div>
-          <h3 className="mt-4 text-lg font-semibold">No new requests</h3>
+          <h3 className="mt-4 text-lg font-semibold">No custom orders found</h3>
           <p className="mt-2 text-sm text-muted-foreground">
-            You are all caught up! New customization requests will appear here.
+            {query
+              ? "No orders match your search criteria."
+              : "You are all caught up! New requests will appear here."}
           </p>
         </div>
       )}
     </div>
   );
 }
-

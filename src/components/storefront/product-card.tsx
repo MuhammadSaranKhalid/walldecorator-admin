@@ -47,7 +47,7 @@ export function ProductCard({
       <div>
         <p className="text-foreground text-base font-medium leading-normal">{name}</p>
         <p className="text-muted-foreground text-sm font-normal leading-normal">{material}</p>
-        <p className="text-foreground text-sm font-semibold leading-normal">${price.toFixed(2)}</p>
+        <p className="text-foreground text-sm font-semibold leading-normal">Rs. {price.toFixed(2)}</p>
       </div>
     </Link>
   );

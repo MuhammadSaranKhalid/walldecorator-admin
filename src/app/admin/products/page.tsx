@@ -114,21 +114,21 @@ export default function ProductsPage() {
     filters: [
       ...(searchQuery
         ? [
-            {
-              field: "name",
-              operator: "contains" as const,
-              value: searchQuery,
-            },
-          ]
+          {
+            field: "name",
+            operator: "contains" as const,
+            value: searchQuery,
+          },
+        ]
         : []),
       ...(statusFilter !== "all"
         ? [
-            {
-              field: "status",
-              operator: "eq" as const,
-              value: statusFilter,
-            },
-          ]
+          {
+            field: "status",
+            operator: "eq" as const,
+            value: statusFilter,
+          },
+        ]
         : []),
     ],
     pagination: {
@@ -175,9 +175,9 @@ export default function ProductsPage() {
     const maxPrice = Math.max(...prices);
 
     if (minPrice === maxPrice) {
-      return `$${minPrice.toFixed(2)}`;
+      return `Rs. ${minPrice.toFixed(2)}`;
     }
-    return `$${minPrice.toFixed(2)} - $${maxPrice.toFixed(2)}`;
+    return `Rs. ${minPrice.toFixed(2)} - Rs. ${maxPrice.toFixed(2)}`;
   };
 
   // Helper function to get primary image
@@ -193,7 +193,17 @@ export default function ProductsPage() {
 
     const primaryImage = sortedImages[0];
     // Use thumbnail, medium, or large path based on availability
-    return primaryImage.thumbnail_path || primaryImage.medium_path || primaryImage.large_path || primaryImage.storage_path;
+    const path = primaryImage.thumbnail_path || primaryImage.medium_path || primaryImage.large_path || primaryImage.storage_path;
+
+    if (!path) return null;
+    if (path.startsWith('http')) return path;
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    if (!supabaseUrl) return path;
+
+    // Ensure we don't double-slash or misconstruct the URL
+    const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+    return `${supabaseUrl}/storage/v1/object/public/product-images/${cleanPath}`;
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -259,225 +269,225 @@ export default function ProductsPage() {
       {/* Main Content Card */}
       {/* <Card>
         <CardContent className="p-6"> */}
-          {/* Search and Filters */}
-          <div className="flex flex-col md:flex-row gap-4 mb-4">
-            <div className="grow relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input
-                placeholder="Search by product name"
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1); // Reset to first page on search
-                }}
-                className="pl-12 h-12"
-              />
-            </div>
-            <div className="flex gap-3">
-              <Select
-                value={statusFilter}
-                onValueChange={(value) => {
-                  setStatusFilter(value);
-                  setCurrentPage(1);
-                }}
-              >
-                <SelectTrigger className="w-[160px] h-12">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="archived">Archived</SelectItem>
-                  <SelectItem value="draft">Draft</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+      {/* Search and Filters */}
+      <div className="flex flex-col md:flex-row gap-4 mb-4">
+        <div className="grow relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+          <Input
+            placeholder="Search by product name"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1); // Reset to first page on search
+            }}
+            className="pl-12 h-12"
+          />
+        </div>
+        <div className="flex gap-3">
+          <Select
+            value={statusFilter}
+            onValueChange={(value) => {
+              setStatusFilter(value);
+              setCurrentPage(1);
+            }}
+          >
+            <SelectTrigger className="w-[160px] h-12">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="archived">Archived</SelectItem>
+              <SelectItem value="draft">Draft</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
-          {/* Loading State */}
-          {productsLoading && (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <span className="ml-3 text-muted-foreground">
-                Loading products...
-              </span>
-            </div>
-          )}
+      {/* Loading State */}
+      {productsLoading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-3 text-muted-foreground">
+            Loading products...
+          </span>
+        </div>
+      )}
 
-          {/* Error State */}
-          {productsError && (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <AlertCircle className="h-12 w-12 text-destructive mb-3" />
-              <h3 className="text-lg font-semibold mb-2">
-                Error loading products
-              </h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                There was an error loading the products from the database.
-              </p>
-              <Button onClick={() => refetchProducts()} variant="outline">
-                Try Again
-              </Button>
-            </div>
-          )}
+      {/* Error State */}
+      {productsError && (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <AlertCircle className="h-12 w-12 text-destructive mb-3" />
+          <h3 className="text-lg font-semibold mb-2">
+            Error loading products
+          </h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            There was an error loading the products from the database.
+          </p>
+          <Button onClick={() => refetchProducts()} variant="outline">
+            Try Again
+          </Button>
+        </div>
+      )}
 
-          {/* Table */}
-          {!productsLoading && !productsError && (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">
-                      <Checkbox
-                        checked={
-                          products.length > 0 &&
-                          selectedProducts.length === products.length
-                        }
-                        onCheckedChange={handleSelectAll}
-                      />
-                    </TableHead>
-                    <TableHead colSpan={2}>Product</TableHead>
-                    <TableHead>Price Range</TableHead>
-                    <TableHead>Variants</TableHead>
-                    <TableHead className="text-center">Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {products.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center">
-                        <div className="flex flex-col items-center justify-center text-muted-foreground">
-                          <p className="text-lg font-medium mb-2">
-                            No products found
-                          </p>
-                          <p className="text-sm">
-                            {searchQuery || statusFilter !== "all"
-                              ? "Try adjusting your filters"
-                              : "Get started by creating your first product"}
-                          </p>
+      {/* Table */}
+      {!productsLoading && !productsError && (
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={
+                      products.length > 0 &&
+                      selectedProducts.length === products.length
+                    }
+                    onCheckedChange={handleSelectAll}
+                  />
+                </TableHead>
+                <TableHead colSpan={2}>Product</TableHead>
+                <TableHead>Price Range</TableHead>
+                <TableHead>Variants</TableHead>
+                <TableHead className="text-center">Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {products.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="h-24 text-center">
+                    <div className="flex flex-col items-center justify-center text-muted-foreground">
+                      <p className="text-lg font-medium mb-2">
+                        No products found
+                      </p>
+                      <p className="text-sm">
+                        {searchQuery || statusFilter !== "all"
+                          ? "Try adjusting your filters"
+                          : "Get started by creating your first product"}
+                      </p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                products.map((product) => {
+                  const variantCount = getVariantCount(product);
+                  const priceRange = getPriceRange(product);
+                  const primaryImage = getPrimaryImage(product);
+                  const productId = String(product.id);
+
+                  return (
+                    <TableRow key={productId}>
+                      <TableCell className="w-12">
+                        <Checkbox
+                          checked={selectedProducts.includes(productId)}
+                          onCheckedChange={(checked) =>
+                            handleSelectProduct(
+                              productId,
+                              checked as boolean
+                            )
+                          }
+                        />
+                      </TableCell>
+                      <TableCell className="w-16">
+                        <Avatar className="h-12 w-12 rounded-lg">
+                          {primaryImage ? (
+                            <AvatarImage
+                              src={primaryImage}
+                              alt={product.name}
+                              className="object-cover"
+                            />
+                          ) : (
+                            <AvatarFallback className="rounded-lg text-xs">
+                              No image
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {product.name}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {priceRange}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {variantCount} {variantCount === 1 ? "variant" : "variants"}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge
+                          variant={
+                            product.status === "active"
+                              ? "default"
+                              : product.status === "draft"
+                                ? "secondary"
+                                : "destructive"
+                          }
+                        >
+                          {product.status
+                            ? product.status.charAt(0).toUpperCase() + product.status.slice(1)
+                            : "Draft"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Link href={`/admin/products/${productId}/edit`}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Edit product"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() =>
+                              handleDeleteProduct(productId, product.name)
+                            }
+                            title="Delete product"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
-                  ) : (
-                    products.map((product) => {
-                      const variantCount = getVariantCount(product);
-                      const priceRange = getPriceRange(product);
-                      const primaryImage = getPrimaryImage(product);
-                      const productId = String(product.id);
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
-                      return (
-                        <TableRow key={productId}>
-                          <TableCell className="w-12">
-                            <Checkbox
-                              checked={selectedProducts.includes(productId)}
-                              onCheckedChange={(checked) =>
-                                handleSelectProduct(
-                                  productId,
-                                  checked as boolean
-                                )
-                              }
-                            />
-                          </TableCell>
-                          <TableCell className="w-16">
-                            <Avatar className="h-12 w-12 rounded-lg">
-                              {primaryImage ? (
-                                <AvatarImage
-                                  src={primaryImage}
-                                  alt={product.name}
-                                  className="object-cover"
-                                />
-                              ) : (
-                                <AvatarFallback className="rounded-lg text-xs">
-                                  No image
-                                </AvatarFallback>
-                              )}
-                            </Avatar>
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            {product.name}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {priceRange}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {variantCount} {variantCount === 1 ? "variant" : "variants"}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Badge
-                              variant={
-                                product.status === "active"
-                                  ? "default"
-                                  : product.status === "draft"
-                                  ? "secondary"
-                                  : "destructive"
-                              }
-                            >
-                              {product.status
-                                ? product.status.charAt(0).toUpperCase() + product.status.slice(1)
-                                : "Draft"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Link href={`/admin/products/${productId}/edit`}>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  title="Edit product"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              </Link>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() =>
-                                  handleDeleteProduct(productId, product.name)
-                                }
-                                title="Delete product"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-
-          {/* Pagination */}
-          {!productsLoading && !productsError && totalPages > 1 && (
-            <div className="flex items-center justify-between pt-4 mt-4 border-t">
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(currentPage - 1)}
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                Previous
-              </Button>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">
-                  Page {currentPage} of {totalPages} ({totalProducts} total)
-                </span>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(currentPage + 1)}
-              >
-                Next
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            </div>
-          )}
-        {/* </CardContent>
+      {/* Pagination */}
+      {!productsLoading && !productsError && totalPages > 1 && (
+        <div className="flex items-center justify-between pt-4 mt-4 border-t">
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage(currentPage - 1)}
+          >
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Previous
+          </Button>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              Page {currentPage} of {totalPages} ({totalProducts} total)
+            </span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage(currentPage + 1)}
+          >
+            Next
+            <ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
+        </div>
+      )}
+      {/* </CardContent>
       </Card> */}
     </div>
   );

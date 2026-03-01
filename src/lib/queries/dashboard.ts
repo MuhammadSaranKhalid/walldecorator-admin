@@ -1,4 +1,4 @@
-import { supabaseBrowserClient as supabase } from "@/utils/supabase/client";
+import prisma from "@/lib/prisma";
 
 export interface DashboardStats {
   totalRevenue: number;
@@ -16,71 +16,115 @@ export interface RecentOrder {
   customer_name: string;
   customer_email: string;
   created_at: string;
-  total: number;
+  total_amount: number;
+  currency: string;
   status: string;
 }
 
-export async function getDashboardStats(): Promise<DashboardStats> {
-  const now = new Date();
-  const firstDayThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+export function getDateRangeFromParams(searchParams?: { [key: string]: string | string[] | undefined }) {
+  const range = (searchParams?.range as string) || "30";
+  const end = new Date();
+  const start = new Date();
+  const previousStart = new Date();
+  const previousEnd = new Date();
 
-  // Get all orders
-  const { data: allOrders } = await supabase
-    .from('orders')
-    .select('total, created_at, status')
-    .neq('status', 'cancelled');
+  switch (range) {
+    case "today":
+      start.setHours(0, 0, 0, 0);
+      previousStart.setDate(start.getDate() - 1);
+      previousStart.setHours(0, 0, 0, 0);
+      previousEnd.setDate(start.getDate() - 1);
+      previousEnd.setHours(23, 59, 59, 999);
+      break;
+    case "7":
+      start.setDate(end.getDate() - 7);
+      previousEnd.setTime(start.getTime());
+      previousStart.setDate(previousEnd.getDate() - 7);
+      break;
+    case "30":
+    default: // 30 is default
+      start.setDate(end.getDate() - 30);
+      previousEnd.setTime(start.getTime());
+      previousStart.setDate(previousEnd.getDate() - 30);
+      break;
+    case "90":
+      start.setDate(end.getDate() - 90);
+      previousEnd.setTime(start.getTime());
+      previousStart.setDate(previousEnd.getDate() - 90);
+      break;
+    case "ytd":
+      start.setMonth(0, 1);
+      start.setHours(0, 0, 0, 0);
+      previousStart.setFullYear(start.getFullYear() - 1, 0, 1);
+      previousEnd.setFullYear(start.getFullYear() - 1, end.getMonth(), end.getDate());
+      break;
+    case "all":
+      start.setFullYear(2000, 0, 1);
+      previousStart.setFullYear(1900, 0, 1);
+      previousEnd.setTime(start.getTime());
+      break;
+  }
+  return { start, end, previousStart, previousEnd };
+}
 
-  // Calculate total revenue
-  const totalRevenue = allOrders?.reduce((sum, order) => sum + parseFloat(order.total || '0'), 0) || 0;
+export async function getDashboardStats(
+  searchParams?: { [key: string]: string | string[] | undefined }
+): Promise<DashboardStats> {
+  const { start: currentStart, end: currentEnd, previousStart, previousEnd } = getDateRangeFromParams(searchParams);
 
-  // Get this month's orders
-  const { data: thisMonthOrders } = await supabase
-    .from('orders')
-    .select('total, created_at')
-    .gte('created_at', firstDayThisMonth.toISOString())
-    .neq('status', 'cancelled');
+  const [allOrders, currentPeriodOrders, previousPeriodOrders] = await Promise.all([
+    prisma.orders.findMany({
+      where: { status: { not: 'cancelled' } },
+      select: { total_amount: true },
+    }),
+    prisma.orders.findMany({
+      where: {
+        status: { not: 'cancelled' },
+        created_at: { gte: currentStart, lte: currentEnd },
+      },
+      select: { total_amount: true },
+    }),
+    prisma.orders.findMany({
+      where: {
+        status: { not: 'cancelled' },
+        created_at: { gte: previousStart, lte: previousEnd },
+      },
+      select: { total_amount: true },
+    }),
+  ]);
 
-  // Get last month's orders
-  const { data: lastMonthOrders } = await supabase
-    .from('orders')
-    .select('total')
-    .gte('created_at', firstDayLastMonth.toISOString())
-    .lte('created_at', lastDayLastMonth.toISOString())
-    .neq('status', 'cancelled');
+  const totalRevenue = allOrders.reduce((sum, o) => sum + o.total_amount.toNumber(), 0);
+  const monthRevenue = currentPeriodOrders.reduce((sum, o) => sum + o.total_amount.toNumber(), 0);
+  const lastMonthRevenue = previousPeriodOrders.reduce((sum, o) => sum + o.total_amount.toNumber(), 0);
 
-  const monthRevenue = thisMonthOrders?.reduce((sum, order) => sum + parseFloat(order.total || '0'), 0) || 0;
-  const lastMonthRevenue = lastMonthOrders?.reduce((sum, order) => sum + parseFloat(order.total || '0'), 0) || 0;
   const monthRevenueChange = lastMonthRevenue > 0
     ? ((monthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100
     : 0;
 
-  // Get new orders count (this month)
-  const newOrders = thisMonthOrders?.length || 0;
-  const lastMonthOrdersCount = lastMonthOrders?.length || 0;
+  const newOrders = currentPeriodOrders.length;
+  const lastMonthOrdersCount = previousPeriodOrders.length;
   const newOrdersChange = lastMonthOrdersCount > 0
     ? ((newOrders - lastMonthOrdersCount) / lastMonthOrdersCount) * 100
     : 0;
 
-  // Get pending customizations
-  const { data: thisMonthCustomizations } = await supabase
-    .from('customization_requests')
-    .select('id, created_at')
-    .eq('status', 'pending')
-    .gte('created_at', firstDayThisMonth.toISOString());
+  const [currentPeriodC, previousPeriodC] = await Promise.all([
+    prisma.custom_orders.count({
+      where: {
+        status: { in: ['pending', 'reviewing'] },
+        created_at: { gte: currentStart, lte: currentEnd },
+      },
+    }),
+    prisma.custom_orders.count({
+      where: {
+        status: { in: ['pending', 'reviewing'] },
+        created_at: { gte: previousStart, lte: previousEnd },
+      },
+    }),
+  ]);
 
-  const { data: lastMonthCustomizations } = await supabase
-    .from('customization_requests')
-    .select('id')
-    .eq('status', 'pending')
-    .gte('created_at', firstDayLastMonth.toISOString())
-    .lte('created_at', lastDayLastMonth.toISOString());
-
-  const pendingCustomizations = thisMonthCustomizations?.length || 0;
-  const lastMonthCustomizationsCount = lastMonthCustomizations?.length || 0;
-  const pendingCustomizationsChange = lastMonthCustomizationsCount > 0
-    ? ((pendingCustomizations - lastMonthCustomizationsCount) / lastMonthCustomizationsCount) * 100
+  const pendingCustomizations = currentPeriodC;
+  const pendingCustomizationsChange = previousPeriodC > 0
+    ? ((currentPeriodC - previousPeriodC) / previousPeriodC) * 100
     : 0;
 
   return {
@@ -94,76 +138,148 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   };
 }
 
-export async function getRecentOrders(limit: number = 5): Promise<RecentOrder[]> {
-  const { data, error } = await supabase
-    .from('orders')
-    .select(`
-      id,
-      order_number,
-      created_at,
-      total,
-      status,
-      customer:customers (
-        first_name,
-        last_name,
-        email
-      )
-    `)
-    .order('created_at', { ascending: false })
-    .limit(limit);
+export async function getRecentOrders(
+  searchParams?: { [key: string]: string | string[] | undefined },
+  limit: number = 5
+): Promise<RecentOrder[]> {
+  const { start, end } = getDateRangeFromParams(searchParams);
 
-  if (error) {
-    console.error('Error fetching recent orders:', error);
-    return [];
-  }
-
-  return (data || []).map(order => {
-    // Supabase returns customer as an array, so we need to get the first element
-    const customerData = order.customer as any;
-    const customer = Array.isArray(customerData) ? customerData[0] : customerData;
-
-    return {
-      id: order.id,
-      order_number: order.order_number,
-      customer_name: customer
-        ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Guest'
-        : 'Guest',
-      customer_email: customer?.email || '',
-      created_at: order.created_at,
-      total: parseFloat(order.total || '0'),
-      status: order.status,
-    };
+  const orders = await prisma.orders.findMany({
+    where: {
+      status: { not: 'cancelled' },
+      created_at: { gte: start, lte: end },
+    },
+    select: {
+      id: true,
+      order_number: true,
+      customer_name: true,
+      customer_email: true,
+      created_at: true,
+      total_amount: true,
+      currency: true,
+      status: true,
+    },
+    orderBy: { created_at: 'desc' },
+    take: limit,
   });
+
+  return orders.map(o => ({
+    id: o.id,
+    order_number: o.order_number,
+    customer_name: o.customer_name,
+    customer_email: o.customer_email,
+    created_at: o.created_at.toISOString(),
+    total_amount: o.total_amount.toNumber(),
+    currency: o.currency,
+    status: o.status ?? 'pending',
+  }));
 }
 
-export async function getMonthlySalesData() {
-  const now = new Date();
-  const startDate = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+export async function getSalesChartData(
+  searchParams?: { [key: string]: string | string[] | undefined }
+) {
+  const { start, end } = getDateRangeFromParams(searchParams);
+  const range = (searchParams?.range as string) || "30";
 
-  const { data, error } = await supabase
-    .from('orders')
-    .select('total, created_at')
-    .gte('created_at', startDate.toISOString())
-    .neq('status', 'cancelled')
-    .order('created_at', { ascending: true });
+  // Decide grouping based on range duration
+  const groupByMonth = range === "ytd" || range === "all";
 
-  if (error) {
-    console.error('Error fetching monthly sales data:', error);
-    return [];
-  }
-
-  // Group by month
-  const monthlyData = new Map<string, number>();
-
-  data?.forEach(order => {
-    const date = new Date(order.created_at);
-    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    const current = monthlyData.get(monthKey) || 0;
-    monthlyData.set(monthKey, current + parseFloat(order.total || '0'));
+  const orders = await prisma.orders.findMany({
+    where: {
+      status: { not: 'cancelled' },
+      created_at: { gte: start, lte: end },
+    },
+    select: { total_amount: true, created_at: true },
+    orderBy: { created_at: 'asc' },
   });
 
-  return Array.from(monthlyData.entries()).map(([month, total]) => ({
-    month,
+  const chartData = new Map<string, number>();
+
+  orders.forEach(o => {
+    const date = o.created_at;
+    let key;
+    if (groupByMonth) {
+      key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    } else {
+      key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    }
+    const current = chartData.get(key) || 0;
+    chartData.set(key, current + o.total_amount.toNumber());
+  });
+
+  return Array.from(chartData.entries()).map(([label, total]) => ({
+    label,
     total,
+  }));
+}
+
+export async function getLowStockAlerts(limit: number = 5) {
+  const alerts = await prisma.inventory.findMany({
+    where: {
+      quantity_available: {
+        lte: prisma.inventory.fields.low_stock_threshold,
+      },
+    },
+    include: {
+      product_variants: {
+        include: {
+          products: {
+            select: { name: true, slug: true },
+          },
+          product_attribute_values_product_variants_size_idToproduct_attribute_values: {
+            select: { display_name: true },
+          },
+          product_attribute_values_product_variants_material_idToproduct_attribute_values: {
+            select: { display_name: true },
+          },
+        },
+      },
+    },
+    take: limit,
+    orderBy: { quantity_available: 'asc' },
+  });
+
+  return alerts.map(alert => ({
+    id: alert.id,
+    variant_id: alert.variant_id,
+    quantity_available: alert.quantity_available,
+    low_stock_threshold: alert.low_stock_threshold,
+    product_name: alert.product_variants.products.name,
+    sku: alert.product_variants.sku,
+    size: alert.product_variants.product_attribute_values_product_variants_size_idToproduct_attribute_values?.display_name,
+    material: alert.product_variants.product_attribute_values_product_variants_material_idToproduct_attribute_values?.display_name,
+  }));
+}
+
+export async function getTopProducts(limit: number = 5) {
+  const products = await prisma.products.findMany({
+    where: { status: 'active' },
+    orderBy: { total_sold: 'desc' },
+    take: limit,
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      total_sold: true,
+      product_images: {
+        where: { is_primary: true },
+        select: { storage_path: true },
+        take: 1
+      },
+      product_variants: {
+        where: { is_default: true },
+        select: { price: true },
+        take: 1
+      }
+    }
+  });
+
+  return products.map(p => ({
+    id: p.id,
+    name: p.name,
+    slug: p.slug,
+    total_sold: p.total_sold,
+    image_url: p.product_images[0]?.storage_path,
+    price: p.product_variants[0]?.price?.toNumber() || 0,
   }));
 }

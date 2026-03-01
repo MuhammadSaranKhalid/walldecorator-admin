@@ -21,7 +21,7 @@ export function ProductFilters({ onFiltersChange }: ProductFiltersProps) {
     const newMaterials = selectedMaterials.includes(material)
       ? selectedMaterials.filter((m) => m !== material)
       : [...selectedMaterials, material];
-    
+
     setSelectedMaterials(newMaterials);
     onFiltersChange?.({ materials: newMaterials, priceRange });
   };
@@ -41,7 +41,7 @@ export function ProductFilters({ onFiltersChange }: ProductFiltersProps) {
   return (
     <div className="space-y-6">
       <h3 className="text-xl font-bold">Filters</h3>
-      
+
       {/* Material Filter */}
       <div className="space-y-3">
         <h4 className="font-semibold text-sm">Material</h4>
@@ -74,8 +74,8 @@ export function ProductFilters({ onFiltersChange }: ProductFiltersProps) {
           />
         </div>
         <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>${priceRange[0]}</span>
-          <span>${priceRange[1]}</span>
+          <span>Rs. {priceRange[0]}</span>
+          <span>Rs. {priceRange[1]}</span>
         </div>
       </div>
 

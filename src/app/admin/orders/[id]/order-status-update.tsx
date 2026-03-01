@@ -10,12 +10,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Order, OrderStatus } from "@/types/orders";
 import { useRouter } from "next/navigation";
-import { updateOrderStatus, updateTrackingNumber } from "@/lib/queries/orders";
+import { updateOrderStatusAction } from "../actions";
 import { toast } from "sonner";
 
 interface OrderStatusUpdateProps {
@@ -36,47 +35,30 @@ const orderStatuses: { value: OrderStatus; label: string }[] = [
 export function OrderStatusUpdate({ order, onUpdate }: OrderStatusUpdateProps) {
   const router = useRouter();
   const [status, setStatus] = useState<OrderStatus>(order.status);
-  const [adminNote, setAdminNote] = useState(order.admin_note || '');
-  const [trackingNumber, setTrackingNumber] = useState(order.tracking_number || '');
+  const [notes, setNotes] = useState(order.notes || '');
   const [isUpdating, setIsUpdating] = useState(false);
 
   const handleUpdateStatus = async () => {
-    if (status === order.status && adminNote === (order.admin_note || '')) {
-      toast.info("Please make changes before updating.");
+    const statusChanged = status !== order.status;
+    const notesChanged = notes !== (order.notes || '');
+
+    if (!statusChanged && !notesChanged) {
+      toast.info("No changes to save.");
       return;
     }
 
     setIsUpdating(true);
     try {
-      const updatedOrder = await updateOrderStatus(order.id, status, adminNote);
-      if (updatedOrder) {
-        onUpdate(updatedOrder);
-        toast.success("Order status has been updated successfully.");
+      const result = await updateOrderStatusAction(order.id, status, notes || undefined);
+      if (result.success && result.order) {
+        onUpdate(result.order);
+        toast.success("Order updated successfully.");
         router.refresh();
+      } else {
+        toast.error(result.error ?? "Failed to update order. Please try again.");
       }
-    } catch (error) {
-      toast.error("Failed to update order status. Please try again.");
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const handleUpdateTracking = async () => {
-    if (trackingNumber === (order.tracking_number || '')) {
-      toast.info("Please enter a different tracking number.");
-      return;
-    }
-
-    setIsUpdating(true);
-    try {
-      const updatedOrder = await updateTrackingNumber(order.id, trackingNumber);
-      if (updatedOrder) {
-        onUpdate(updatedOrder);
-        toast.success("Tracking number has been updated successfully.");
-        router.refresh();
-      }
-    } catch (error) {
-      toast.error("Failed to update tracking number. Please try again.");
+    } catch {
+      toast.error("Failed to update order. Please try again.");
     } finally {
       setIsUpdating(false);
     }
@@ -105,12 +87,12 @@ export function OrderStatusUpdate({ order, onUpdate }: OrderStatusUpdateProps) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="admin-note">Admin Note</Label>
+          <Label htmlFor="notes">Notes</Label>
           <Textarea
-            id="admin-note"
-            placeholder="Add a note about this order..."
-            value={adminNote}
-            onChange={(e) => setAdminNote(e.target.value)}
+            id="notes"
+            placeholder="Add an internal note about this order..."
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
             rows={3}
           />
         </div>
@@ -120,29 +102,8 @@ export function OrderStatusUpdate({ order, onUpdate }: OrderStatusUpdateProps) {
           disabled={isUpdating}
           className="w-full"
         >
-          {isUpdating ? 'Updating...' : 'Update Status'}
+          {isUpdating ? 'Saving...' : 'Save Changes'}
         </Button>
-
-        <div className="pt-4 border-t">
-          <div className="space-y-2">
-            <Label htmlFor="tracking">Tracking Number</Label>
-            <Input
-              id="tracking"
-              placeholder="Enter tracking number..."
-              value={trackingNumber}
-              onChange={(e) => setTrackingNumber(e.target.value)}
-            />
-          </div>
-
-          <Button
-            onClick={handleUpdateTracking}
-            disabled={isUpdating}
-            variant="outline"
-            className="w-full mt-2"
-          >
-            {isUpdating ? 'Updating...' : 'Update Tracking'}
-          </Button>
-        </div>
       </CardContent>
     </Card>
   );

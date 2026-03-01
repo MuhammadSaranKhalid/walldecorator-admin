@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, FormProvider } from "react-hook-form";
+import { useForm, FormProvider, useWatch, SubmitHandler } from "react-hook-form";
 import { useOne } from "@refinedev/core";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,6 @@ interface ProductFormProps {
 
 export function ProductForm({ mode, productId }: ProductFormProps) {
   const router = useRouter();
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const isEditMode = mode === "edit";
 
   // Fetch product data for edit mode
@@ -55,7 +54,8 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
 
   // React Hook Form
   const methods = useForm<FormValues>({
-    resolver: zodResolver(formSchema) as any,
+    resolver: zodResolver(formSchema),
+    mode: "onBlur", // Validate on blur for better UX
     defaultValues: {
       name: "",
       description: "",
@@ -69,20 +69,33 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
     },
   });
 
-  const { handleSubmit, setValue, reset, watch } = methods;
-  const productImages = watch("images") || [];
+  const { handleSubmit, reset, control, formState } = methods;
 
-  // Unsaved changes warning
+  // Properly destructure formState before render (Proxy optimization)
+  const { isSubmitting, isDirty, errors } = formState;
+
+  // Use useWatch for better performance - only re-renders when images change
+  const productImages = useWatch({ control, name: "images" }) || [];
+
+  // Warn user about unsaved changes
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (productImages.length > 0) {
+      if (isDirty) {
         e.preventDefault();
+        return (e.returnValue = ''); // Required for Chrome
       }
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [productImages.length]);
+  }, [isDirty]);
+
+  // Debug: Log validation errors
+  useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      console.error("=== FORM VALIDATION ERRORS ===", errors);
+    }
+  }, [errors]);
 
   // Populate form with existing product data when in edit mode
   useEffect(() => {
@@ -92,20 +105,35 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
       const images = product.product_images && product.product_images.length > 0
         ? product.product_images
           .sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))
-          .map((img: any, index: number) => ({
-            url: img.thumbnail_path || img.medium_path || img.large_path || img.storage_path,
-            uploadedUrl: img.storage_path,
-            thumbnailPath: img.thumbnail_path,
-            mediumPath: img.medium_path,
-            largePath: img.large_path,
-            storage_path: img.storage_path,
-            blurhash: img.blurhash,
-            altText: img.alt_text,
-            displayOrder: img.display_order || index,
-            isUploading: false,
-            dbImageId: img.id,
-            is_primary: img.is_primary || false,
-          }))
+          .map((img: any, index: number) => {
+            const rawPath = img.thumbnail_path || img.medium_path || img.large_path || img.storage_path;
+
+            let fullUrl = "";
+            if (rawPath) {
+              if (rawPath.startsWith("http")) {
+                fullUrl = rawPath;
+              } else {
+                const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+                const cleanPath = rawPath.startsWith("/") ? rawPath.substring(1) : rawPath;
+                fullUrl = supabaseUrl ? `${supabaseUrl}/storage/v1/object/public/product-images/${cleanPath}` : rawPath;
+              }
+            }
+
+            return {
+              url: fullUrl,
+              uploadedUrl: img.storage_path || undefined,
+              thumbnailPath: img.thumbnail_path || undefined,
+              mediumPath: img.medium_path || undefined,
+              largePath: img.large_path || undefined,
+              storage_path: img.storage_path || undefined,
+              blurhash: img.blurhash || undefined,
+              altText: img.alt_text || undefined,
+              displayOrder: img.display_order || index,
+              isUploading: false,
+              dbImageId: img.id,
+              is_primary: img.is_primary ?? false,
+            };
+          })
         : [];
 
       reset({
@@ -131,10 +159,11 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
   }, [isEditMode, existingProduct, reset]);
 
 
-  const onSubmit = async (values: FormValues) => {
-    console.log(values)
-    setIsSubmitting(true);
+  const onSubmit: SubmitHandler<FormValues> = async (values) => {
+    console.log("Form submitted with values:", values);
+
     try {
+      // Transform images for server action
       const uploadedImages = values.images.map((image, i) => ({
         storage_path: image.storage_path || image.uploadedUrl || image.url,
         display_order: i,
@@ -143,65 +172,42 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
         medium_path: image.mediumPath,
         large_path: image.largePath,
         alt_text: image.altText,
-        is_primary: image.is_primary ?? (i === 0), // Use existing is_primary or default to first image
+        is_primary: image.is_primary ?? (i === 0),
       }));
 
       const { variants, images, ...productData } = values;
 
-      if (isEditMode && productId) {
-        // Update the product using server action
-        const result = await updateProduct({
-          id: productId,
-          name: productData.name,
-          description: productData.description,
-          category_id: productData.category_id || null,
-          status: productData.status,
-          is_featured: productData.is_featured,
-          seo_title: productData.seo_title || null,
-          seo_description: productData.seo_description || null,
-          variants: variants || [],
-          images: uploadedImages,
-        });
+      // Prepare data for server action
+      const productInput = {
+        name: productData.name,
+        description: productData.description,
+        category_id: productData.category_id || null,
+        status: productData.status,
+        is_featured: productData.is_featured,
+        seo_title: productData.seo_title || null,
+        seo_description: productData.seo_description || null,
+        variants: variants || [],
+        images: uploadedImages,
+      };
 
-        if (!result.success) {
-          toast.error(result.error || "Failed to update product");
-          setIsSubmitting(false);
-          return;
-        }
+      // Call appropriate server action
+      const result = isEditMode && productId
+        ? await updateProduct({ id: productId, ...productInput })
+        : await createProduct(productInput);
 
-        toast.success(`Product "${values.name}" updated successfully!`);
-        router.push("/admin/products");
-      } else {
-        // Create the product using server action
-        const result = await createProduct({
-          name: productData.name,
-          description: productData.description,
-          category_id: productData.category_id || null,
-          status: productData.status,
-          is_featured: productData.is_featured,
-          seo_title: productData.seo_title || null,
-          seo_description: productData.seo_description || null,
-          variants: variants || [],
-          images: uploadedImages,
-        });
-
-        if (!result.success) {
-          toast.error(result.error || "Failed to create product");
-          setIsSubmitting(false);
-          return;
-        }
-
-        toast.success(`Product "${values.name}" created successfully!`);
-        router.push("/admin/products");
+      if (!result.success) {
+        toast.error(result.error || `Failed to ${isEditMode ? "update" : "create"} product`);
+        return;
       }
 
-      reset();
+      toast.success(`Product "${values.name}" ${isEditMode ? "updated" : "created"} successfully!`);
+      router.push("/admin/products");
+      // Note: reset() not needed as component will unmount after navigation
     } catch (error: any) {
+      console.error(`Error ${isEditMode ? "updating" : "creating"} product:`, error);
       toast.error(
         `Error ${isEditMode ? "updating" : "creating"} product: ${error.message || "Unknown error"}`
       );
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -217,14 +223,14 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
 
   return (
     <FormProvider {...methods}>
-      <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <BasicInformation>
           <SEOFields />
         </BasicInformation>
 
         <ProductImages />
 
-        <ProductSettings />
+        {/* <ProductSettings /> */}
 
         <ProductVariants />
 

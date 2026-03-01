@@ -63,6 +63,7 @@ export async function createProduct(input: CreateProductInput) {
     const product = await prisma.products.create({
       data: {
         name: input.name,
+        slug: "",
         description: input.description || null,
         category_id: input.category_id || null,
         status: input.status,
@@ -106,12 +107,12 @@ export async function createProduct(input: CreateProductInput) {
     // Convert Decimal fields to numbers for client serialization
     const serializedProduct = {
       ...product,
-      product_variants: product.product_variants.map((variant) => ({
+      product_variants: (product as any).product_variants?.map((variant: any) => ({
         ...variant,
         price: Number(variant.price),
         compare_at_price: variant.compare_at_price ? Number(variant.compare_at_price) : null,
         cost_per_item: variant.cost_per_item ? Number(variant.cost_per_item) : null,
-      })),
+      })) || [],
     };
 
     // Revalidate the products page
@@ -119,7 +120,7 @@ export async function createProduct(input: CreateProductInput) {
 
     return {
       success: true,
-      data: serializedProduct,
+      data: serializedProduct as any,
     };
   } catch (error: any) {
     console.error("Error in createProduct:", error);
@@ -204,7 +205,7 @@ export async function updateProduct(input: UpdateProductInput) {
     // Convert Decimal fields to numbers for client serialization
     const serializedProduct = {
       ...product,
-      product_variants: product.product_variants.map((variant) => ({
+      product_variants: (product.product_variants || []).map((variant: any) => ({
         ...variant,
         price: Number(variant.price),
         compare_at_price: variant.compare_at_price ? Number(variant.compare_at_price) : null,

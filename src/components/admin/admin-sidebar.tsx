@@ -6,13 +6,12 @@ import {
   LayoutDashboard,
   Package,
   ShoppingCart,
-  Users,
   Palette,
   LogOut,
-  Grid3x3,
   BarChart3,
   Settings,
   Tags,
+  Layers,
 } from "lucide-react";
 import {
   Sidebar,
@@ -26,19 +25,16 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
 
 const navigation = [
   { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
   { name: "Products", href: "/admin/products", icon: Package },
   { name: "Orders", href: "/admin/orders", icon: ShoppingCart },
   { name: "Categories", href: "/admin/categories", icon: Tags },
-  { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },
-  { name: "Settings", href: "/admin/settings", icon: Settings },
-  { name: "Customers", href: "/admin/customers", icon: Users },
-  { name: "Customizations", href: "/admin/customizations", icon: Palette },
-  { name: "Materials", href: "/admin/materials", icon: Grid3x3 },
+  { name: "Attributes", href: "/admin/attributes", icon: Layers },
+  // { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },
+  // { name: "Settings", href: "/admin/settings", icon: Settings },
+  { name: "Customize", href: "/admin/customizations", icon: Palette },
 ];
 
 export function AdminSidebar() {

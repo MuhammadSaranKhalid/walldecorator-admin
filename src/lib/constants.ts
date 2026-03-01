@@ -14,11 +14,13 @@ export const ORDER_STATUS = {
   REFUNDED: 'refunded',
 } as const;
 
-export const CUSTOMIZATION_STATUS = {
+export const CUSTOM_ORDER_STATUS = {
   PENDING: 'pending',
-  IN_REVIEW: 'in_review',
+  REVIEWING: 'reviewing',
+  QUOTED: 'quoted',
   APPROVED: 'approved',
   IN_PRODUCTION: 'in_production',
+  SHIPPED: 'shipped',
   COMPLETED: 'completed',
   CANCELLED: 'cancelled',
 } as const;
@@ -31,6 +33,6 @@ export const PRODUCT_STATUS = {
 } as const;
 
 export type OrderStatus = typeof ORDER_STATUS[keyof typeof ORDER_STATUS];
-export type CustomizationStatus = typeof CUSTOMIZATION_STATUS[keyof typeof CUSTOMIZATION_STATUS];
+export type CustomOrderStatus = typeof CUSTOM_ORDER_STATUS[keyof typeof CUSTOM_ORDER_STATUS];
 export type ProductStatus = typeof PRODUCT_STATUS[keyof typeof PRODUCT_STATUS];
 

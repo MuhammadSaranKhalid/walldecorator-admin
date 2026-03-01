@@ -23,9 +23,9 @@ export const formSchema = z.object({
       material_id: z.string().min(1, "Select a material"),
       size_id: z.string().min(1, "Select a size"),
       thickness_id: z.string().min(1, "Select a thickness"),
-      price: z.coerce.number().min(0, "Price must be positive"),
-      compare_at_price: z.coerce.number().min(0).optional().nullable(),
-      cost_per_item: z.coerce.number().min(0).optional().nullable(),
+      price: z.number().min(0, "Price must be positive"),
+      compare_at_price: z.number().min(0).nullable().optional(),
+      cost_per_item: z.number().min(0).nullable().optional(),
       is_default: z.boolean().optional(),
     })
   ).min(1, "Add at least one variant"),

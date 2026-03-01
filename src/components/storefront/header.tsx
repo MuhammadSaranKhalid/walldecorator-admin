@@ -27,7 +27,7 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const getTotalItems = useCartStore((state) => state.getTotalItems);
   const { language, currency, setLanguage, setCurrency } = usePreferencesStore();
-  
+
   const totalItems = getTotalItems();
 
   const isActive = (path: string) => {
@@ -45,10 +45,10 @@ export function Header() {
               <Grid3x3 className="h-8 w-8 text-primary" />
               <h2 className="text-xl font-bold">WallDecor Co.</h2>
             </Link>
-            
+
             <nav className="hidden lg:flex items-center gap-9">
-              <Link 
-                href="/" 
+              <Link
+                href="/"
                 className={cn(
                   "text-sm font-medium hover:text-primary transition-colors",
                   isActive("/") && pathname === "/" ? "text-primary font-bold" : ""
@@ -56,8 +56,8 @@ export function Header() {
               >
                 Home
               </Link>
-              <Link 
-                href="/products" 
+              <Link
+                href="/products"
                 className={cn(
                   "text-sm font-medium hover:text-primary transition-colors",
                   isActive("/products") ? "text-primary font-bold" : ""
@@ -65,8 +65,8 @@ export function Header() {
               >
                 Shop
               </Link>
-              <Link 
-                href="/about" 
+              <Link
+                href="/about"
                 className={cn(
                   "text-sm font-medium hover:text-primary transition-colors",
                   isActive("/about") ? "text-primary font-bold" : ""
@@ -92,16 +92,7 @@ export function Header() {
                 </SelectContent>
               </Select>
 
-              <Select value={currency} onValueChange={(value) => setCurrency(value as any)}>
-                <SelectTrigger className="w-[100px] border-0 bg-transparent text-sm font-medium hover:text-primary focus:ring-0">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Dollar">Dollar</SelectItem>
-                  <SelectItem value="Euro">Euro</SelectItem>
-                  <SelectItem value="Rupees">Rupees</SelectItem>
-                </SelectContent>
-              </Select>
+
 
               <ThemeToggle />
             </div>
@@ -129,8 +120,8 @@ export function Header() {
                 <div className="flex flex-col h-full">
                   {/* Navigation Links */}
                   <nav className="flex flex-col gap-1 mt-8">
-                    <Link 
-                      href="/" 
+                    <Link
+                      href="/"
                       className={cn(
                         "px-4 py-3 text-base font-medium rounded-lg transition-colors",
                         isActive("/") && pathname === "/"
@@ -141,8 +132,8 @@ export function Header() {
                     >
                       Home
                     </Link>
-                    <Link 
-                      href="/products" 
+                    <Link
+                      href="/products"
                       className={cn(
                         "px-4 py-3 text-base font-medium rounded-lg transition-colors",
                         isActive("/products")
@@ -153,8 +144,8 @@ export function Header() {
                     >
                       Shop
                     </Link>
-                    <Link 
-                      href="/about" 
+                    <Link
+                      href="/about"
                       className={cn(
                         "px-4 py-3 text-base font-medium rounded-lg transition-colors",
                         isActive("/about")
@@ -166,7 +157,7 @@ export function Header() {
                       About
                     </Link>
                   </nav>
-                  
+
                   {/* Settings Section */}
                   <div className="mt-auto mb-6 space-y-6 pt-6 border-t">
                     <div className="space-y-2">
@@ -185,21 +176,7 @@ export function Header() {
                       </Select>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                        Currency
-                      </label>
-                      <Select value={currency} onValueChange={(value) => setCurrency(value as any)}>
-                        <SelectTrigger className="w-full h-11">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Dollar">Dollar ($)</SelectItem>
-                          <SelectItem value="Euro">Euro (€)</SelectItem>
-                          <SelectItem value="Rupees">Rupees (₹)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+
 
                     <div className="space-y-2">
                       <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">

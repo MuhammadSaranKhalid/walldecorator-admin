@@ -1,12 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useSelect } from "@refinedev/core";
-import { useForm } from "@refinedev/react-hook-form";
+import { useForm, Controller, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Controller } from "react-hook-form";
 import {
     Field,
     FieldLabel,
@@ -25,83 +23,122 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, ImagePlus, X } from "lucide-react";
+import { Loader2, ImagePlus, X, AlertCircle, Info } from "lucide-react";
 import { toast } from "sonner";
 import { supabaseBrowserClient } from "@/utils/supabase/client";
 import Image from "next/image";
-import { Tables } from "@/types/supabase";
+import { categories } from "@/generated/prisma";
+import {
+    getCategoryOptionsWithHierarchy,
+    validateCategoryStructure,
+    getCategoryBreadcrumb,
+} from "@/lib/category-utils";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+    createCategory,
+    updateCategory,
+    getCategory,
+    getAllCategories,
+    type CategoryFormData,
+} from "@/app/admin/categories/actions";
 
 const formSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters"),
     slug: z.string().min(2, "Slug must be at least 2 characters"),
     description: z.string().optional(),
     parent_id: z.string().uuid().nullable().optional().or(z.literal("")),
-    image_url: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+    image_path: z.string().url("Must be a valid URL").optional().or(z.literal("")),
     display_order: z.coerce.number().int().min(0, "Order must be non-negative"),
-    is_active: z.boolean().default(true),
-    meta_title: z.string().optional(),
-    meta_description: z.string().optional(),
+    is_visible: z.boolean().default(true),
+    seo_title: z.string().optional(),
+    seo_description: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
-type Category = Tables<"categories">;
+type Category = categories;
 
 interface CategoryFormProps {
     mode: "create" | "edit";
     categoryId?: string;
+    defaultParentId?: string;
 }
 
-export function CategoryForm({ mode, categoryId }: CategoryFormProps) {
+export function CategoryForm({ mode, categoryId, defaultParentId }: CategoryFormProps) {
     const router = useRouter();
     const [isUploading, setIsUploading] = useState(false);
+    const [parentValidationError, setParentValidationError] = useState<string>("");
+    const [allCategories, setAllCategories] = useState<Category[]>([]);
+    const [isPending, startTransition] = useTransition();
+    const [isLoadingData, setIsLoadingData] = useState(mode === "edit");
+
     const isEditMode = mode === "edit";
+    const isSubcategoryMode = !!defaultParentId;
 
-    // Fetch parent categories options
-    const { options: categoryOptions } = useSelect<Category>({
-        resource: "categories",
-        optionLabel: "name",
-        optionValue: "id",
-        sorters: [{ field: "name", order: "asc" }],
-        pagination: { mode: "off" },
-    });
+    // Build hierarchical category options for parent selector
+    const categoryOptions = useMemo(() => {
+        return getCategoryOptionsWithHierarchy(allCategories, categoryId);
+    }, [allCategories, categoryId]);
 
-    const form = useForm<any, any, FormValues>({
-        resolver: zodResolver(formSchema) as any,
+    const form = useForm<FormValues>({
+        resolver: zodResolver(formSchema) as Resolver<FormValues>,
         defaultValues: {
             name: "",
             slug: "",
             description: "",
-            parent_id: "", // "" handles empty selection
-            image_url: "",
+            parent_id: defaultParentId || "",
+            image_path: "",
             display_order: 0,
-            is_active: true,
-            meta_title: "",
-            meta_description: "",
-        },
-        refineCoreProps: {
-            resource: "categories",
-            action: mode,
-            id: categoryId,
-            redirect: false,
-            onMutationSuccess: () => {
-                toast.success(`Category ${mode === "create" ? "created" : "updated"} successfully`);
-                router.push("/admin/categories");
-            },
-            onMutationError: (error) => {
-                console.error("Submission error:", error);
-                toast.error(`Error saving category: ${error?.message || "Unknown error"}`);
-            }
+            is_visible: true,
+            seo_title: "",
+            seo_description: "",
         },
     });
 
     const {
-        saveButtonProps,
-        refineCore: { onFinish, formLoading },
         handleSubmit,
         setValue,
         control,
         getValues,
+        watch,
+        reset,
+        formState: { isSubmitting },
     } = form;
+
+    // Load categories and category data on mount
+    useEffect(() => {
+        async function loadData() {
+            // Load all categories for parent selector
+            const categoriesResponse = await getAllCategories();
+            if (categoriesResponse.success && categoriesResponse.data) {
+                setAllCategories(categoriesResponse.data);
+            }
+
+            // Load category data in edit mode
+            if (isEditMode && categoryId) {
+                setIsLoadingData(true);
+                const response = await getCategory(categoryId);
+                if (response.success && response.data) {
+                    const category = response.data;
+                    reset({
+                        name: category.name,
+                        slug: category.slug,
+                        description: category.description || "",
+                        parent_id: category.parent_id || "",
+                        image_path: category.image_path || "",
+                        display_order: category.display_order || 0,
+                        is_visible: category.is_visible ?? true,
+                        seo_title: category.seo_title || "",
+                        seo_description: category.seo_description || "",
+                    });
+                } else {
+                    toast.error(response.error || "Failed to load category");
+                }
+                setIsLoadingData(false);
+            }
+        }
+
+        loadData();
+    }, [categoryId, isEditMode, reset]);
 
     // Auto-generate slug from name
     const handleNameChange = (value: string) => {
@@ -135,7 +172,7 @@ export function CategoryForm({ mode, categoryId }: CategoryFormProps) {
                 .from("product-images")
                 .getPublicUrl(filePath);
 
-            setValue("image_url", data.publicUrl);
+            setValue("image_path", data.publicUrl);
             toast.success("Image uploaded successfully");
         } catch (error: any) {
             console.error("Upload error:", error);
@@ -145,20 +182,104 @@ export function CategoryForm({ mode, categoryId }: CategoryFormProps) {
         }
     };
 
+    // Validate parent selection
+    const validateParentSelection = (parentId: string | null) => {
+        if (!parentId || parentId === "" || parentId === "none") {
+            setParentValidationError("");
+            return true;
+        }
+
+        const validation = validateCategoryStructure(
+            categoryId,
+            parentId,
+            allCategories,
+            5 // Max depth of 5 levels
+        );
+
+        if (!validation.valid) {
+            setParentValidationError(validation.error || "Invalid parent selection");
+            return false;
+        }
+
+        setParentValidationError("");
+        return true;
+    };
+
     const onSubmit = async (values: FormValues) => {
-        // Clean data: convert empty strings to null for UUID/Optional fields
-        const payload = {
-            ...values,
-            parent_id: values.parent_id === "" || values.parent_id === "none" ? null : values.parent_id,
-            image_url: values.image_url === "" ? null : values.image_url,
+        // Validate parent selection before submit
+        const parentId = values.parent_id === "" || values.parent_id === "none" ? null : (values.parent_id ?? null);
+
+        if (!validateParentSelection(parentId)) {
+            toast.error(parentValidationError || "Invalid parent category selection");
+            return;
+        }
+
+        // Prepare form data
+        const formData: CategoryFormData = {
+            name: values.name,
+            slug: values.slug,
+            description: values.description || undefined,
+            parent_id: parentId,
+            image_path: values.image_path || null,
+            display_order: values.display_order,
+            is_visible: values.is_visible,
+            seo_title: values.seo_title || undefined,
+            seo_description: values.seo_description || undefined,
         };
 
-        await onFinish(payload as any);
+        startTransition(async () => {
+            try {
+                let response;
+
+                if (isEditMode && categoryId) {
+                    response = await updateCategory(categoryId, formData);
+                } else {
+                    response = await createCategory(formData);
+                }
+
+                if (response.success) {
+                    toast.success(
+                        isEditMode ? "Category updated successfully" : "Category created successfully"
+                    );
+                    router.push("/admin/categories");
+                    router.refresh();
+                } else {
+                    toast.error(response.error || "Failed to save category");
+                }
+            } catch (error: any) {
+                console.error("Form submission error:", error);
+                toast.error(error.message || "An unexpected error occurred");
+            }
+        });
     };
+
+    if (isLoadingData) {
+        return (
+            <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="ml-3 text-muted-foreground">Loading category...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-2xl mx-auto">
             <form onSubmit={handleSubmit(onSubmit)}>
+                {/* Subcategory Info Alert */}
+                {isSubcategoryMode && defaultParentId && (
+                    <Alert className="mb-6">
+                        <Info className="h-4 w-4" />
+                        <AlertDescription>
+                            Creating subcategory under:{" "}
+                            <strong>{getCategoryBreadcrumb(defaultParentId, allCategories)}</strong>
+                            <br />
+                            <span className="text-xs text-muted-foreground">
+                                You can change the parent category below if needed.
+                            </span>
+                        </AlertDescription>
+                    </Alert>
+                )}
+
                 <FieldGroup>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <Controller
@@ -222,62 +343,97 @@ export function CategoryForm({ mode, categoryId }: CategoryFormProps) {
                         )}
                     />
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 gap-6">
                         <Controller
                             control={control}
                             name="parent_id"
                             render={({ field, fieldState }) => (
-                                <Field data-invalid={fieldState.invalid}>
-                                    <FieldLabel>Parent Category</FieldLabel>
+                                <Field data-invalid={fieldState.invalid || !!parentValidationError}>
+                                    <FieldLabel>
+                                        Parent Category
+                                        {isSubcategoryMode && (
+                                            <span className="ml-2 text-xs font-normal text-muted-foreground">
+                                                (Pre-selected)
+                                            </span>
+                                        )}
+                                    </FieldLabel>
                                     <Select
-                                        onValueChange={field.onChange}
-                                        defaultValue={field.value || "none"}
+                                        onValueChange={(value) => {
+                                            field.onChange(value);
+                                            validateParentSelection(value === "none" ? null : value);
+                                        }}
                                         value={field.value || "none"}
                                     >
-                                        <SelectTrigger aria-invalid={fieldState.invalid}>
+                                        <SelectTrigger aria-invalid={fieldState.invalid || !!parentValidationError}>
                                             <SelectValue placeholder="Select parent (optional)" />
                                         </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="none">None (Top Level)</SelectItem>
-                                            {categoryOptions
-                                                .filter((c) => c.value !== categoryId) // Prevent self-parenting
-                                                .map((option) => (
-                                                    <SelectItem key={option.value} value={option.value}>
-                                                        {option.label}
-                                                    </SelectItem>
-                                                ))}
+                                        <SelectContent className="max-h-[300px]">
+                                            <SelectItem value="none">None (Top Level Category)</SelectItem>
+                                            {categoryOptions.map((option) => (
+                                                <SelectItem
+                                                    key={option.value}
+                                                    value={option.value}
+                                                    disabled={option.disabled}
+                                                    className={option.level > 0 ? "font-normal" : "font-semibold"}
+                                                >
+                                                    {option.label}
+                                                </SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
+                                    <FieldDescription>
+                                        {isSubcategoryMode
+                                            ? "Parent is pre-selected. You can change it if needed."
+                                            : "Organize categories into hierarchies. Max 5 levels deep."
+                                        }
+                                    </FieldDescription>
+                                    {parentValidationError && (
+                                        <Alert variant="destructive" className="mt-2">
+                                            <AlertCircle className="h-4 w-4" />
+                                            <AlertDescription>{parentValidationError}</AlertDescription>
+                                        </Alert>
+                                    )}
                                     {fieldState.invalid && (
                                         <FieldError errors={[fieldState.error]} />
                                     )}
-                                </Field>
-                            )}
-                        />
-
-                        <Controller
-                            control={control}
-                            name="display_order"
-                            render={({ field, fieldState }) => (
-                                <Field data-invalid={fieldState.invalid}>
-                                    <FieldLabel>Display Order</FieldLabel>
-                                    <Input
-                                        type="number"
-                                        {...field}
-                                        aria-invalid={fieldState.invalid}
-                                    />
-                                    {fieldState.invalid && (
-                                        <FieldError errors={[fieldState.error]} />
+                                    {field.value && field.value !== "none" && !parentValidationError && (
+                                        <div className="text-xs text-muted-foreground mt-1">
+                                            Path: {getCategoryBreadcrumb(field.value, allCategories)}
+                                        </div>
                                     )}
                                 </Field>
                             )}
                         />
                     </div>
 
+                    <Controller
+                        control={control}
+                        name="display_order"
+                        render={({ field, fieldState }) => (
+                            <Field data-invalid={fieldState.invalid}>
+                                <FieldLabel>Display Order</FieldLabel>
+                                <Input
+                                    type="number"
+                                    {...field}
+                                    value={field.value ?? 0}
+                                    onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                                    aria-invalid={fieldState.invalid}
+                                    className="max-w-xs"
+                                />
+                                <FieldDescription>
+                                    Lower numbers appear first. Categories at the same level are sorted by this value.
+                                </FieldDescription>
+                                {fieldState.invalid && (
+                                    <FieldError errors={[fieldState.error]} />
+                                )}
+                            </Field>
+                        )}
+                    />
+
                     {/* Image Upload */}
                     <Controller
                         control={control}
-                        name="image_url"
+                        name="image_path"
                         render={({ field, fieldState }) => (
                             <Field data-invalid={fieldState.invalid}>
                                 <FieldLabel>Category Image</FieldLabel>
@@ -292,7 +448,7 @@ export function CategoryForm({ mode, categoryId }: CategoryFormProps) {
                                             />
                                             <button
                                                 type="button"
-                                                onClick={() => setValue("image_url", "")}
+                                                onClick={() => setValue("image_path", "")}
                                                 className="absolute top-1 right-1 bg-destructive/90 text-destructive-foreground p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                                             >
                                                 <X className="h-4 w-4" />
@@ -338,11 +494,11 @@ export function CategoryForm({ mode, categoryId }: CategoryFormProps) {
 
                     <Controller
                         control={control}
-                        name="is_active"
+                        name="is_visible"
                         render={({ field, fieldState }) => (
                             <Field orientation="horizontal" className="justify-between rounded-lg border p-4 shadow-sm" data-invalid={fieldState.invalid}>
                                 <div className="space-y-0.5">
-                                    <FieldLabel>Active</FieldLabel>
+                                    <FieldLabel>Visible</FieldLabel>
                                     <FieldDescription>
                                         Visible in the store.
                                     </FieldDescription>
@@ -361,10 +517,10 @@ export function CategoryForm({ mode, categoryId }: CategoryFormProps) {
                         <h3 className="text-sm font-medium text-muted-foreground">SEO Settings</h3>
                         <Controller
                             control={control}
-                            name="meta_title"
+                            name="seo_title"
                             render={({ field, fieldState }) => (
                                 <Field data-invalid={fieldState.invalid}>
-                                    <FieldLabel>Meta Title</FieldLabel>
+                                    <FieldLabel>SEO Title</FieldLabel>
                                     <Input
                                         {...field}
                                         value={field.value ?? ""}
@@ -378,10 +534,10 @@ export function CategoryForm({ mode, categoryId }: CategoryFormProps) {
                         />
                         <Controller
                             control={control}
-                            name="meta_description"
+                            name="seo_description"
                             render={({ field, fieldState }) => (
                                 <Field data-invalid={fieldState.invalid}>
-                                    <FieldLabel>Meta Description</FieldLabel>
+                                    <FieldLabel>SEO Description</FieldLabel>
                                     <Textarea
                                         className="h-20"
                                         {...field}
@@ -400,8 +556,8 @@ export function CategoryForm({ mode, categoryId }: CategoryFormProps) {
                         <Button type="button" variant="outline" onClick={() => router.back()}>
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={isUploading || formLoading}>
-                            {formLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        <Button type="submit" disabled={isUploading || isSubmitting || isPending}>
+                            {(isSubmitting || isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             {isEditMode ? "Save Changes" : "Create Category"}
                         </Button>
                     </div>

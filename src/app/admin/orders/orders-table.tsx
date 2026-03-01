@@ -99,13 +99,6 @@ export function OrdersTable({ orders, total, currentPage, totalPages, limit }: O
     router.push(`/admin/orders?${params.toString()}`);
   };
 
-  const getCustomerName = (order: Order) => {
-    if (order.customer?.first_name || order.customer?.last_name) {
-      return `${order.customer.first_name || ''} ${order.customer.last_name || ''}`.trim();
-    }
-    return order.customer?.email || 'Guest';
-  };
-
   const getCustomerInitials = (name: string) => {
     return name
       .split(' ')
@@ -138,7 +131,7 @@ export function OrdersTable({ orders, total, currentPage, totalPages, limit }: O
                   onCheckedChange={handleSelectAll}
                 />
               </TableHead>
-              <TableHead>Order Number</TableHead>
+              <TableHead>Order</TableHead>
               <TableHead>Customer</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Items</TableHead>
@@ -150,7 +143,6 @@ export function OrdersTable({ orders, total, currentPage, totalPages, limit }: O
           <TableBody>
             {orders.map((order) => {
               const status = statusConfig[order.status];
-              const customerName = getCustomerName(order);
               const itemCount = order.order_items?.length || 0;
 
               return (
@@ -170,16 +162,14 @@ export function OrdersTable({ orders, total, currentPage, totalPages, limit }: O
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">
                         <AvatarFallback className="text-xs">
-                          {getCustomerInitials(customerName)}
+                          {getCustomerInitials(order.customer_name)}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex flex-col">
-                        <span className="text-sm">{customerName}</span>
-                        {order.customer?.email && (
-                          <span className="text-xs text-muted-foreground">
-                            {order.customer.email}
-                          </span>
-                        )}
+                        <span className="text-sm">{order.customer_name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {order.customer_email}
+                        </span>
                       </div>
                     </div>
                   </TableCell>
@@ -190,7 +180,7 @@ export function OrdersTable({ orders, total, currentPage, totalPages, limit }: O
                     {itemCount} {itemCount === 1 ? 'item' : 'items'}
                   </TableCell>
                   <TableCell className="font-medium">
-                    ${order.total.toFixed(2)}
+                    {order.currency} {Number(order.total_amount).toFixed(2)}
                   </TableCell>
                   <TableCell>
                     <Badge variant="secondary" className={status.className}>
@@ -218,7 +208,7 @@ export function OrdersTable({ orders, total, currentPage, totalPages, limit }: O
       {/* Pagination */}
       <div className="p-4 flex flex-col md:flex-row justify-between items-center text-sm border-t">
         <div className="text-muted-foreground mb-4 md:mb-0">
-          Showing <span className="font-semibold text-foreground">{from}-{to}</span> of{" "}
+          Showing <span className="font-semibold text-foreground">{from}–{to}</span> of{" "}
           <span className="font-semibold text-foreground">{total}</span> orders
         </div>
         <nav className="inline-flex items-center -space-x-px">

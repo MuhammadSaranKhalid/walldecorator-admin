@@ -1,4 +1,5 @@
-// Database types for orders based on schema
+// Orders types — aligned with actual guest-checkout migration schema
+// See: supabase/migrations/20250101000009_orders.sql
 
 export type OrderStatus =
   | 'pending'
@@ -9,103 +10,94 @@ export type OrderStatus =
   | 'cancelled'
   | 'refunded';
 
-export interface Customer {
-  id: string;
-  email: string;
-  first_name: string | null;
-  last_name: string | null;
-  phone: string | null;
-  accepts_marketing: boolean;
-  total_orders: number;
-  total_spent: number;
-  created_at: string;
-  updated_at: string;
+export type PaymentStatus =
+  | 'pending'
+  | 'authorized'
+  | 'paid'
+  | 'failed'
+  | 'refunded'
+  | 'partially_refunded';
+
+// Shipping/Billing address stored as JSONB snapshot on the orders table
+export interface OrderAddress {
+  full_name?: string;
+  address_line1?: string;
+  address_line2?: string;
+  city?: string;
+  province?: string;    // state/province
+  postal_code?: string;
+  country?: string;
+  phone?: string;
+  [key: string]: string | undefined; // allow extra fields from JSONB
 }
 
-export interface Address {
-  id: string;
-  customer_id: string;
-  address_type: 'shipping' | 'billing' | 'both';
-  first_name: string | null;
-  last_name: string | null;
-  company: string | null;
-  address_line1: string;
-  address_line2: string | null;
-  city: string;
-  state: string | null;
-  postal_code: string;
-  country: string;
-  phone: string | null;
-  is_default: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Product {
-  id: string;
-  name: string;
-  slug: string;
-  sku: string;
-  primary_image_url: string | null;
-}
-
-export interface Material {
-  id: string;
-  name: string;
-  slug: string;
-}
-
-export interface ProductMaterial {
-  id: string;
-  product_id: string;
-  material_id: string;
-  price: number;
-  material?: Material;
-}
-
+// Order line item — matches order_items table exactly
 export interface OrderItem {
   id: string;
   order_id: string;
-  product_id: string | null;
-  product_material_id: string | null;
+  variant_id: string | null;
   product_name: string;
-  product_sku: string | null;
-  material_name: string | null;
+  variant_description: string | null; // e.g. "Metal - 60x40cm - 3mm"
+  sku: string;
   quantity: number;
   unit_price: number;
   total_price: number;
   created_at: string;
-  product?: Product;
-  product_material?: ProductMaterial;
 }
 
+// Order status history — matches order_status_history table
+export interface OrderStatusHistory {
+  id: string;
+  order_id: string;
+  from_status: string | null;
+  to_status: string;
+  changed_by_type: string; // 'system' | 'admin'
+  notes: string | null;
+  created_at: string;
+}
+
+// Main Order — matches orders table columns exactly
 export interface Order {
   id: string;
   order_number: string;
-  customer_id: string | null;
   status: OrderStatus;
+
+  // Customer Information (stored directly — guest checkout, no FK)
+  customer_email: string;
+  customer_name: string;
+  customer_phone: string;
+
+  // Addresses (JSONB snapshots)
+  shipping_address: OrderAddress;
+  billing_address: OrderAddress | null;
+
+  // Financials
   subtotal: number;
+  discount_amount: number;
   shipping_cost: number;
   tax_amount: number;
-  discount_amount: number;
-  total: number;
-  shipping_address_id: string | null;
-  shipping_method: string | null;
-  tracking_number: string | null;
+  total_amount: number;    // grand total (DB column: total_amount)
+  currency: string;        // default 'PKR'
+
+  // Payment
+  payment_status: PaymentStatus | null;
+  payment_intent_id: string | null;
+  payment_method: string | null;  // 'card', 'cash_on_delivery', etc.
+
+  // Metadata
+  notes: string | null;
+
+  // Timestamps
+  confirmed_at: string | null;
   shipped_at: string | null;
   delivered_at: string | null;
-  billing_address_id: string | null;
-  customer_note: string | null;
-  admin_note: string | null;
-  payment_method: string | null;
-  payment_status: string | null;
-  paid_at: string | null;
+  cancelled_at: string | null;
   created_at: string;
   updated_at: string;
-  customer?: Customer;
-  shipping_address?: Address;
-  billing_address?: Address;
+
+  // Joined relations (optional, depending on query)
   order_items?: OrderItem[];
+  order_status_history?: OrderStatusHistory[];
 }
 
 export interface OrderFilters {

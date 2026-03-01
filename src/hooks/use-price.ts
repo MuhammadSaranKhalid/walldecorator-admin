@@ -10,7 +10,7 @@ export const usePrice = () => {
     ) => {
         if (typeof price !== "number") return "";
 
-        const { currencyCode = "USD", locale = "en-US" } = options;
+        const { currencyCode = "PKR", locale = "en-PK" } = options;
 
         return new Intl.NumberFormat(locale, {
             style: "currency",

@@ -2,6 +2,9 @@ import { Suspense } from "react";
 import { DashboardStats } from "./dashboard-stats";
 import { DashboardRecentOrders } from "./dashboard-recent-orders";
 import { DashboardSalesChart } from "./dashboard-sales-chart";
+import { DashboardDateFilter } from "./dashboard-date-filter";
+import { DashboardInventoryAlerts } from "./dashboard-inventory-alerts";
+import { DashboardTopProducts } from "./dashboard-top-products";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -28,70 +31,105 @@ function StatsLoading() {
 
 function ChartLoading() {
   return (
-    <section className="mb-6">
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-32 mb-2" />
-          <Skeleton className="h-10 w-48" />
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-[220px] w-full" />
-        </CardContent>
-      </Card>
-    </section>
+    <Card>
+      <CardHeader>
+        <Skeleton className="h-6 w-32 mb-2" />
+        <Skeleton className="h-10 w-48" />
+      </CardHeader>
+      <CardContent>
+        <Skeleton className="h-[300px] w-full" />
+      </CardContent>
+    </Card>
   );
 }
 
 function OrdersLoading() {
   return (
-    <section>
-      <Skeleton className="h-7 w-48 mb-3 mt-5" />
-      <Card>
-        <div className="p-6">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-12 w-full mb-3" />
-          ))}
-        </div>
-      </Card>
-    </section>
+    <Card>
+      <CardHeader>
+        <Skeleton className="h-6 w-48 mb-2" />
+      </CardHeader>
+      <CardContent>
+        {[1, 2, 3, 4].map((i) => (
+          <Skeleton key={i} className="h-12 w-full mb-3" />
+        ))}
+      </CardContent>
+    </Card>
   );
 }
 
-export default function AdminDashboard() {
+function CardLoading() {
   return (
-    <div>
+    <Card className="h-full min-h-[300px]">
+      <CardHeader>
+        <Skeleton className="h-6 w-48 mb-2" />
+      </CardHeader>
+      <CardContent>
+        {[1, 2, 3, 4].map((i) => (
+          <Skeleton key={i} className="h-12 w-full mb-3" />
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+export default async function AdminDashboard(props: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const searchParams = await props.searchParams;
+  return (
+    <div className="space-y-6 pb-12">
       {/* Page Header */}
-      <header className="flex flex-wrap justify-between gap-3 items-center mb-6">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-4xl font-black leading-tight tracking-tight">
-            Dashboard Overview
-          </h1>
-          <p className="text-muted-foreground text-base">
-            Here&apos;s a summary of your store&apos;s performance.
+      <header className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground mt-1">
+            Overview of your store&apos;s performance.
           </p>
         </div>
-        <Link href="/admin/products">
-          <Button className="font-bold">
-            <Plus className="h-4 w-4 mr-2" />
-            Add New Product
-          </Button>
-        </Link>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <DashboardDateFilter />
+          <Link href="/admin/products">
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Product
+            </Button>
+          </Link>
+        </div>
       </header>
 
       {/* Stats Grid */}
       <Suspense fallback={<StatsLoading />}>
-        <DashboardStats />
+        <DashboardStats searchParams={searchParams} />
       </Suspense>
 
-      {/* Sales Chart */}
-      <Suspense fallback={<ChartLoading />}>
-        <DashboardSalesChart />
-      </Suspense>
+      {/* Main Content Area */}
+      <div className="grid grid-cols-1 lg:grid-cols-7 gap-6">
+        {/* Sales Chart (Takes up more space) */}
+        <div className="col-span-1 lg:col-span-4 self-start">
+          <Suspense fallback={<ChartLoading />}>
+            <DashboardSalesChart searchParams={searchParams} />
+          </Suspense>
+        </div>
 
-      {/* Recent Orders Table */}
-      <Suspense fallback={<OrdersLoading />}>
-        <DashboardRecentOrders />
-      </Suspense>
+        {/* Recent Orders (Takes up less space, side column) */}
+        <div className="col-span-1 lg:col-span-3">
+          <Suspense fallback={<OrdersLoading />}>
+            <DashboardRecentOrders searchParams={searchParams} />
+          </Suspense>
+        </div>
+      </div>
+
+      {/* Secondary Insights Area */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Suspense fallback={<CardLoading />}>
+          <DashboardInventoryAlerts />
+        </Suspense>
+
+        <Suspense fallback={<CardLoading />}>
+          <DashboardTopProducts />
+        </Suspense>
+      </div>
     </div>
   );
 }
