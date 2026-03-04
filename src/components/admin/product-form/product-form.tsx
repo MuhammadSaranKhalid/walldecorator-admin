@@ -40,9 +40,16 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
     meta: {
       select: `
         *,
+        categories (
+          id, name, parent_id
+        ),
         product_variants (
           id, sku, material_id, size_id, thickness_id, price,
-          compare_at_price, cost_per_item, is_default
+          compare_at_price, cost_per_item, is_default,
+          inventory (
+            quantity_on_hand, quantity_reserved, quantity_available,
+            low_stock_threshold, allow_backorder
+          )
         ),
         product_images (
           id, storage_path, thumbnail_path, medium_path, large_path,
@@ -51,6 +58,8 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
       `,
     },
   });
+
+  console.log("existingProduct", existingProduct);
 
   // React Hook Form
   const methods = useForm<FormValues>({
@@ -69,7 +78,7 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
     },
   });
 
-  const { handleSubmit, reset, control, formState } = methods;
+  const { handleSubmit, reset, setValue, control, formState } = methods;
 
   // Properly destructure formState before render (Proxy optimization)
   const { isSubmitting, isDirty, errors } = formState;
@@ -149,14 +158,28 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
           compare_at_price: variant.compare_at_price,
           cost_per_item: variant.cost_per_item,
           is_default: variant.is_default || false,
+          inventory: {
+            quantity_on_hand: variant.inventory?.quantity_on_hand ?? 0,
+            low_stock_threshold: variant.inventory?.low_stock_threshold ?? 5,
+            allow_backorder: variant.inventory?.allow_backorder ?? false,
+            quantity_reserved: variant.inventory?.quantity_reserved,
+            quantity_available: variant.inventory?.quantity_available,
+          },
         })) || [],
         images: images,
         is_featured: product.is_featured || false,
         seo_title: product.seo_title || "",
         seo_description: product.seo_description || "",
       });
+
+      // Explicitly set Select-bound fields after reset to ensure
+      // Radix UI controlled Selects re-sync to the new values
+      setTimeout(() => {
+        setValue("status", product.status || "draft", { shouldDirty: false });
+        setValue("category_id", product.category_id || "", { shouldDirty: false });
+      }, 0);
     }
-  }, [isEditMode, existingProduct, reset]);
+  }, [isEditMode, existingProduct, reset, setValue]);
 
 
   const onSubmit: SubmitHandler<FormValues> = async (values) => {
@@ -230,7 +253,7 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
 
         <ProductImages />
 
-        {/* <ProductSettings /> */}
+        <ProductSettings />
 
         <ProductVariants />
 

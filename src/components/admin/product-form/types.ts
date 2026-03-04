@@ -15,7 +15,7 @@ export const formSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters"),
   description: z.string().min(10, "Description must be at least 10 characters"),
   category_id: z.string().nullable().optional().or(z.literal("")),
-  status: z.enum(["draft", "active", "archived"]),
+  status: z.enum(["draft", "active", "inactive", "archived"]),
 
   // Variants: Array of material × size × thickness combinations with pricing
   variants: z.array(
@@ -27,6 +27,15 @@ export const formSchema = z.object({
       compare_at_price: z.number().min(0).nullable().optional(),
       cost_per_item: z.number().min(0).nullable().optional(),
       is_default: z.boolean().optional(),
+      // Inventory fields
+      inventory: z.object({
+        quantity_on_hand: z.number().int().min(0, "Quantity must be 0 or greater"),
+        low_stock_threshold: z.number().int().min(0),
+        allow_backorder: z.boolean(),
+        // Read-only fields (for display when editing)
+        quantity_reserved: z.number().int().optional(),
+        quantity_available: z.number().int().optional(),
+      }),
     })
   ).min(1, "Add at least one variant"),
 

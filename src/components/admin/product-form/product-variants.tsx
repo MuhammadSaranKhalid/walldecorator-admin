@@ -109,6 +109,11 @@ export function ProductVariants() {
       compare_at_price: null,
       cost_per_item: null,
       is_default: fields.length === 0, // First variant is default
+      inventory: {
+        quantity_on_hand: 0,
+        low_stock_threshold: 5,
+        allow_backorder: false,
+      },
     });
   };
 
@@ -320,7 +325,98 @@ export function ProductVariants() {
                 />
               </div>
 
-              {/* Row 3: Default checkbox */}
+              {/* Row 3: Inventory */}
+              <div className="grid grid-cols-3 gap-3">
+                <Controller
+                  name={`variants.${index}.inventory.quantity_on_hand`}
+                  control={control}
+                  render={({ field: controllerField, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel>Stock Quantity *</FieldLabel>
+                      <Input
+                        {...controllerField}
+                        type="number"
+                        step="1"
+                        min="0"
+                        placeholder="0"
+                        aria-invalid={fieldState.invalid}
+                        onChange={(e) =>
+                          controllerField.onChange(parseInt(e.target.value) || 0)
+                        }
+                      />
+                      <FieldDescription className="text-xs">
+                        Available units in stock
+                      </FieldDescription>
+                      {fieldState.error && <FieldError errors={[fieldState.error]} />}
+                    </Field>
+                  )}
+                />
+
+                <Controller
+                  name={`variants.${index}.inventory.low_stock_threshold`}
+                  control={control}
+                  render={({ field: controllerField, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel>Low Stock Threshold</FieldLabel>
+                      <Input
+                        {...controllerField}
+                        type="number"
+                        step="1"
+                        min="0"
+                        placeholder="5"
+                        aria-invalid={fieldState.invalid}
+                        onChange={(e) =>
+                          controllerField.onChange(parseInt(e.target.value) || 5)
+                        }
+                      />
+                      <FieldDescription className="text-xs">
+                        Alert when stock falls below this
+                      </FieldDescription>
+                      {fieldState.error && <FieldError errors={[fieldState.error]} />}
+                    </Field>
+                  )}
+                />
+
+                <Controller
+                  name={`variants.${index}.inventory.allow_backorder`}
+                  control={control}
+                  render={({ field: controllerField, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel>Allow Backorder</FieldLabel>
+                      <div className="flex items-center space-x-2 h-10">
+                        <Checkbox
+                          checked={controllerField.value || false}
+                          onCheckedChange={controllerField.onChange}
+                        />
+                        <span className="text-sm text-muted-foreground">
+                          Accept orders when out of stock
+                        </span>
+                      </div>
+                      {fieldState.error && <FieldError errors={[fieldState.error]} />}
+                    </Field>
+                  )}
+                />
+              </div>
+
+              {/* Display reserved/available stock for existing variants */}
+              {watch(`variants.${index}.inventory.quantity_reserved`) !== undefined && (
+                <div className="grid grid-cols-2 gap-3 p-3 bg-muted/50 rounded-md">
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Reserved: </span>
+                    <span className="font-medium">
+                      {watch(`variants.${index}.inventory.quantity_reserved`) || 0}
+                    </span>
+                  </div>
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Available: </span>
+                    <span className="font-medium">
+                      {watch(`variants.${index}.inventory.quantity_available`) || 0}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Row 4: Default checkbox */}
               <Controller
                 name={`variants.${index}.is_default`}
                 control={control}

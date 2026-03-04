@@ -79,7 +79,7 @@ interface Product {
   name: string;
   slug: string;
   description: string | null;
-  status: "draft" | "active" | "archived";
+  status: "draft" | "active" | "inactive" | "archived";
   category_id?: string | null;
   is_featured: boolean | null;
   featured_order: number | null;
