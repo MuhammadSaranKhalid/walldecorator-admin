@@ -11,6 +11,7 @@
     "start": "refine start",
     "lint": "next lint",
     "refine": "refine",
+    "postinstall": "prisma generate",
     "db:pull": "prisma db pull",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
