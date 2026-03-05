@@ -106,7 +106,7 @@ export async function createProduct(input: CreateProductInput) {
             display_order: image.display_order,
             blurhash: image.blurhash || null,
             alt_text: image.alt_text || null,
-            processing_status: image.processing_status || "completed",
+            processing_status: "pending",
             is_primary: image.is_primary || false,
           })),
         },
