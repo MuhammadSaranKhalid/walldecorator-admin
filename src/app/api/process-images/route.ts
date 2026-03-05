@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
 import { encode } from "blurhash";
-import { createSupabaseAdminClient } from "@utils/supabase/server";
+import { createSupabaseAdminClient } from "@/utils/supabase/server";
 
 export async function POST(req: NextRequest) {
     console.log("Process Images API called");

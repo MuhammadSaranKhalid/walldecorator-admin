@@ -10,8 +10,8 @@ import "@/app/globals.css";
 import { Toaster } from "@/components/refine-ui/notification/toaster";
 import { useNotificationProvider } from "@/components/refine-ui/notification/use-notification-provider";
 import { ThemeProvider } from "@/components/refine-ui/theme/theme-provider";
-import { authProviderClient } from "@providers/auth-provider/auth-provider.client";
-import { dataProvider } from "@providers/data-provider";
+import { authProviderClient } from "@/providers/auth-provider/auth-provider.client";
+import { dataProvider } from "@/providers/data-provider";
 
 type RefineContextProps = {
   children: React.ReactNode;

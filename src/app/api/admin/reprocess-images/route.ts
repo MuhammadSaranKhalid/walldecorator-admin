@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { createSupabaseAdminClient } from "@utils/supabase/server";
+import { createSupabaseAdminClient } from "@/utils/supabase/server";
 
 export async function POST(req: NextRequest) {
     console.log("Reprocess Images Admin API called");
