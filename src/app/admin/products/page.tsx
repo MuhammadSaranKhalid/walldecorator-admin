@@ -1,15 +1,23 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useList, useDelete } from "@refinedev/core";
+import { useDelete } from "@refinedev/core";
+import { useTable } from "@refinedev/react-table";
+import {
+  type ColumnDef,
+  getCoreRowModel,
+  getSortedRowModel,
+  getFilteredRowModel,
+  type SortingState,
+  type ColumnFiltersState,
+  type VisibilityState,
+  type RowSelectionState,
+} from "@tanstack/react-table";
 import {
   Plus,
   Search,
-  ChevronDown,
   Edit,
   Trash2,
-  ChevronLeft,
-  ChevronRight,
   Loader2,
   AlertCircle,
 } from "lucide-react";
@@ -24,19 +32,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import Image from "next/image";
 import Link from "next/link";
 import { toast } from "sonner";
+import { DataTable } from "@/components/refine-ui/data-table/data-table";
 
 // Define interfaces based on new database schema
 interface AttributeValue {
@@ -93,71 +92,18 @@ interface Product {
   product_images?: ProductImage[];
 }
 
-const ITEMS_PER_PAGE = 10;
-
 export default function ProductsPage() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
+  // TanStack Table state
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [globalFilter, setGlobalFilter] = useState("");
 
-  // Fetch products from database with filters
-  const {
-    result: { data: products = [], total: totalProducts = 0 },
-    query: {
-      refetch: refetchProducts,
-      isLoading: productsLoading,
-      isError: productsError,
-    },
-  } = useList<Product>({
-    resource: "products",
-    filters: [
-      ...(searchQuery
-        ? [
-          {
-            field: "name",
-            operator: "contains" as const,
-            value: searchQuery,
-          },
-        ]
-        : []),
-      ...(statusFilter !== "all"
-        ? [
-          {
-            field: "status",
-            operator: "eq" as const,
-            value: statusFilter,
-          },
-        ]
-        : []),
-    ],
-    pagination: {
-      mode: "server",
-      pageSize: ITEMS_PER_PAGE,
-    },
-    sorters: [
-      {
-        field: "created_at",
-        order: "desc",
-      },
-    ],
-    meta: {
-      select: `
-        *,
-        product_variants(
-          id, sku, price, compare_at_price, cost_per_item, is_default,
-          material:product_attribute_values!product_variants_material_id_fkey(id, value, display_name),
-          size:product_attribute_values!product_variants_size_id_fkey(id, value, display_name),
-          thickness:product_attribute_values!product_variants_thickness_id_fkey(id, value, display_name)
-        ),
-        product_images(id, storage_path, thumbnail_path, medium_path, large_path, alt_text, display_order, processing_status)
-      `,
-    },
-  });
+  // Additional state for filters
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const { mutate: deleteProduct } = useDelete();
-
-  const totalPages = Math.ceil(totalProducts / ITEMS_PER_PAGE);
 
   // Helper function to get variant count for a product
   const getVariantCount = (product: Product): number => {
@@ -206,21 +152,199 @@ export default function ProductsPage() {
     return `${supabaseUrl}/storage/v1/object/public/product-images/${cleanPath}`;
   };
 
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedProducts(products.map((p) => String(p.id)));
-    } else {
-      setSelectedProducts([]);
-    }
-  };
+  // Define columns
+  const columns = useMemo<ColumnDef<Product>[]>(
+    () => [
+      {
+        id: "select",
+        header: ({ table }) => (
+          <Checkbox
+            checked={table.getIsAllPageRowsSelected()}
+            onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+            aria-label="Select all"
+          />
+        ),
+        cell: ({ row }) => (
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(value) => row.toggleSelected(!!value)}
+            aria-label="Select row"
+          />
+        ),
+        enableSorting: false,
+        enableHiding: false,
+        size: 40,
+        minSize: 40,
+        maxSize: 40,
+      },
+      {
+        id: "image",
+        header: "Image",
+        cell: ({ row }) => {
+          const primaryImage = getPrimaryImage(row.original);
+          return (
+            <Avatar className="h-12 w-12 rounded-lg">
+              {primaryImage ? (
+                <AvatarImage
+                  src={primaryImage}
+                  alt={row.original.name}
+                  className="object-cover"
+                />
+              ) : (
+                <AvatarFallback className="rounded-lg text-xs">
+                  No image
+                </AvatarFallback>
+              )}
+            </Avatar>
+          );
+        },
+        enableSorting: false,
+        size: 80
+      },
+      {
+        accessorKey: "name",
+        header: "Product",
+        cell: ({ row }) => (
+          <div className="font-medium">{row.getValue("name")}</div>
+        ),
+      },
+      {
+        id: "priceRange",
+        header: "Price Range",
+        cell: ({ row }) => {
+          const priceRange = getPriceRange(row.original);
+          return <div className="text-muted-foreground">{priceRange}</div>;
+        },
+        enableSorting: false,
+      },
+      {
+        id: "variants",
+        header: "Variants",
+        cell: ({ row }) => {
+          const variantCount = getVariantCount(row.original);
+          return (
+            <div className="text-muted-foreground">
+              {variantCount} {variantCount === 1 ? "variant" : "variants"}
+            </div>
+          );
+        },
+        enableSorting: false,
+        size: 80
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => {
+          const status = row.getValue("status") as string;
+          return (
+            <div className="text-center">
+              <Badge
+                variant={
+                  status === "active"
+                    ? "default"
+                    : status === "draft"
+                      ? "secondary"
+                      : "destructive"
+                }
+              >
+                {status ? status.charAt(0).toUpperCase() + status.slice(1) : "Draft"}
+              </Badge>
+            </div>
+          );
+        },
+        size: 60
+      },
+      {
+        id: "actions",
+        header: () => <div className="text-right">Actions</div>,
+        cell: ({ row }) => {
+          const productId = String(row.original.id);
+          return (
+            <div className="flex justify-end gap-2">
+              <Link href={`/admin/products/${productId}/edit`}>
+                <Button variant="ghost" size="icon" title="Edit product">
+                  <Edit className="h-4 w-4" />
+                </Button>
+              </Link>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleDeleteProduct(productId, row.original.name)}
+                title="Delete product"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          );
+        },
+        enableSorting: false,
+        enableHiding: false,
+        size: 80
+      },
+    ],
+    []
+  );
 
-  const handleSelectProduct = (productId: string, checked: boolean) => {
-    if (checked) {
-      setSelectedProducts([...selectedProducts, productId]);
-    } else {
-      setSelectedProducts(selectedProducts.filter((id) => id !== productId));
-    }
-  };
+  // Initialize table with refine and react-table
+  const table = useTable({
+    columns,
+    refineCoreProps: {
+      resource: "products",
+      pagination: {
+        pageSize: 10,
+      },
+      sorters: {
+        initial: [{ field: "created_at", order: "desc" }],
+      },
+      filters: {
+        permanent: statusFilter !== "all"
+          ? [
+            {
+              field: "status",
+              operator: "eq",
+              value: statusFilter,
+            },
+          ]
+          : [],
+      },
+      meta: {
+        select: `
+          *,
+          product_variants(
+            id, sku, price, compare_at_price, cost_per_item, is_default,
+            material:product_attribute_values!product_variants_material_id_fkey(id, value, display_name),
+            size:product_attribute_values!product_variants_size_id_fkey(id, value, display_name),
+            thickness:product_attribute_values!product_variants_thickness_id_fkey(id, value, display_name)
+          ),
+          product_images(id, storage_path, thumbnail_path, medium_path, large_path, alt_text, display_order, processing_status)
+        `,
+      },
+    },
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: setRowSelection,
+    onGlobalFilterChange: setGlobalFilter,
+    state: {
+      sorting,
+      columnFilters,
+      columnVisibility,
+      rowSelection,
+      globalFilter,
+    },
+  });
+
+  const { reactTable, refineCore } = table;
+
+  const {
+    refetch: refetchProducts,
+    isLoading: productsLoading,
+    isError: productsError,
+  } = refineCore.tableQuery;
+
 
   const handleDeleteProduct = (productId: string, productName: string) => {
     if (confirm(`Are you sure you want to delete "${productName}"?`)) {
@@ -233,9 +357,6 @@ export default function ProductsPage() {
           onSuccess: () => {
             toast.success("Product deleted successfully");
             refetchProducts();
-            setSelectedProducts(
-              selectedProducts.filter((id) => id !== productId)
-            );
           },
           onError: (error) => {
             toast.error(`Failed to delete product: ${error.message}`);
@@ -275,10 +396,9 @@ export default function ProductsPage() {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <Input
             placeholder="Search by product name"
-            value={searchQuery}
+            value={globalFilter ?? ""}
             onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setCurrentPage(1); // Reset to first page on search
+              setGlobalFilter(e.target.value);
             }}
             className="pl-12 h-12"
           />
@@ -288,7 +408,6 @@ export default function ProductsPage() {
             value={statusFilter}
             onValueChange={(value) => {
               setStatusFilter(value);
-              setCurrentPage(1);
             }}
           >
             <SelectTrigger className="w-[160px] h-12">
@@ -332,160 +451,7 @@ export default function ProductsPage() {
 
       {/* Table */}
       {!productsLoading && !productsError && (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">
-                  <Checkbox
-                    checked={
-                      products.length > 0 &&
-                      selectedProducts.length === products.length
-                    }
-                    onCheckedChange={handleSelectAll}
-                  />
-                </TableHead>
-                <TableHead colSpan={2}>Product</TableHead>
-                <TableHead>Price Range</TableHead>
-                <TableHead>Variants</TableHead>
-                <TableHead className="text-center">Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {products.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
-                    <div className="flex flex-col items-center justify-center text-muted-foreground">
-                      <p className="text-lg font-medium mb-2">
-                        No products found
-                      </p>
-                      <p className="text-sm">
-                        {searchQuery || statusFilter !== "all"
-                          ? "Try adjusting your filters"
-                          : "Get started by creating your first product"}
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                products.map((product) => {
-                  const variantCount = getVariantCount(product);
-                  const priceRange = getPriceRange(product);
-                  const primaryImage = getPrimaryImage(product);
-                  const productId = String(product.id);
-
-                  return (
-                    <TableRow key={productId}>
-                      <TableCell className="w-12">
-                        <Checkbox
-                          checked={selectedProducts.includes(productId)}
-                          onCheckedChange={(checked) =>
-                            handleSelectProduct(
-                              productId,
-                              checked as boolean
-                            )
-                          }
-                        />
-                      </TableCell>
-                      <TableCell className="w-16">
-                        <Avatar className="h-12 w-12 rounded-lg">
-                          {primaryImage ? (
-                            <AvatarImage
-                              src={primaryImage}
-                              alt={product.name}
-                              className="object-cover"
-                            />
-                          ) : (
-                            <AvatarFallback className="rounded-lg text-xs">
-                              No image
-                            </AvatarFallback>
-                          )}
-                        </Avatar>
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {product.name}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {priceRange}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {variantCount} {variantCount === 1 ? "variant" : "variants"}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge
-                          variant={
-                            product.status === "active"
-                              ? "default"
-                              : product.status === "draft"
-                                ? "secondary"
-                                : "destructive"
-                          }
-                        >
-                          {product.status
-                            ? product.status.charAt(0).toUpperCase() + product.status.slice(1)
-                            : "Draft"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Link href={`/admin/products/${productId}/edit`}>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              title="Edit product"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </Link>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() =>
-                              handleDeleteProduct(productId, product.name)
-                            }
-                            title="Delete product"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      )}
-
-      {/* Pagination */}
-      {!productsLoading && !productsError && totalPages > 1 && (
-        <div className="flex items-center justify-between pt-4 mt-4 border-t">
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage(currentPage - 1)}
-          >
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Previous
-          </Button>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">
-              Page {currentPage} of {totalPages} ({totalProducts} total)
-            </span>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={currentPage === totalPages}
-            onClick={() => setCurrentPage(currentPage + 1)}
-          >
-            Next
-            <ChevronRight className="h-4 w-4 ml-1" />
-          </Button>
-        </div>
+        <DataTable table={table} />
       )}
       {/* </CardContent>
       </Card> */}
