@@ -3,6 +3,8 @@
 import { useList } from "@refinedev/core";
 import { Loader2 } from "lucide-react";
 import { AttributeValuesList } from "@/components/admin/attributes/attribute-values-list";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MaterialAttributeManager } from "@/components/admin/attributes/material-attribute-manager";
 
 export default function AttributesPage() {
   const {
@@ -43,15 +45,26 @@ export default function AttributesPage() {
         </p>
       </div>
 
-      <div className="space-y-6">
-        {attributes.map((attribute: any) => (
-          <AttributeValuesList
-            key={attribute.id}
-            attributeId={attribute.id}
-            attributeDisplayName={attribute.display_name}
-          />
-        ))}
-      </div>
+      <Tabs defaultValue="values" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="values">Attribute Values</TabsTrigger>
+          <TabsTrigger value="mapping">Material Mapping</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="values" className="space-y-6 mt-0">
+          {attributes.map((attribute: any) => (
+            <AttributeValuesList
+              key={attribute.id}
+              attributeId={attribute.id}
+              attributeDisplayName={attribute.display_name}
+            />
+          ))}
+        </TabsContent>
+
+        <TabsContent value="mapping" className="mt-0">
+          <MaterialAttributeManager />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

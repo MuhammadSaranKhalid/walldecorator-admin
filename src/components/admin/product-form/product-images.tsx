@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FieldDescription } from "@/components/ui/field";
-import { Loader2, X, ImagePlus, MoveUp, MoveDown } from "lucide-react";
+import { Loader2, X, ImagePlus, MoveUp, MoveDown, Star } from "lucide-react";
 import { toast } from "sonner";
 import { supabaseBrowserClient } from "@/utils/supabase/client";
 import { ProductImageUI } from "./types";
@@ -55,6 +55,16 @@ export function ProductImages() {
     } catch (error) {
       console.error('Error deleting image from database:', error);
     }
+  };
+
+  // Helper function to set an image as primary
+  const setImageAsPrimary = (index: number) => {
+    const updated = productImages.map((img, i) => ({
+      ...img,
+      is_primary: i === index,
+    }));
+    setProductImages(updated);
+    toast.success("Primary image updated");
   };
 
   return (
@@ -114,6 +124,7 @@ export function ProductImages() {
               console.log(`✓ ${validFiles.length} valid file(s) ready for upload`);
 
               // Create preview images with uploading state
+              const hasPrimaryImage = productImages.some(img => img.is_primary);
               const newImages: ProductImageUI[] = validFiles.map((file, index) => ({
                 url: URL.createObjectURL(file),
                 file,
@@ -121,10 +132,18 @@ export function ProductImages() {
                 isUploading: true,
                 blurhash: undefined,
                 uploadedUrl: undefined,
-                is_primary: productImages.length === 0 && index === 0, // First image is primary if no existing images
+                // First image is primary if no existing images OR no existing primary image
+                is_primary: (!hasPrimaryImage && productImages.length === 0 && index === 0),
               }));
 
-              setProductImages([...productImages, ...newImages]);
+              const allImages = [...productImages, ...newImages];
+
+              // If no image is marked as primary, make the first one primary
+              if (!allImages.some(img => img.is_primary) && allImages.length > 0) {
+                allImages[0].is_primary = true;
+              }
+
+              setProductImages(allImages);
               toast.info(`Uploading ${validFiles.length} image(s) to storage...`);
 
               // Upload all files simultaneously
@@ -239,6 +258,14 @@ export function ProductImages() {
                     </div>
                   )}
 
+                  {/* Primary Image Badge */}
+                  {image.is_primary && !image.isUploading && (
+                    <div className="absolute bottom-2 left-2 bg-yellow-500 text-black px-2 py-1 rounded text-xs font-semibold flex items-center gap-1">
+                      <Star className="h-3 w-3 fill-current" />
+                      Primary
+                    </div>
+                  )}
+
                   {/* Uploaded Success Badge */}
                   {image.uploadedUrl && !image.isUploading && (
                     <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded text-xs font-semibold">
@@ -263,6 +290,10 @@ export function ProductImages() {
                           updated.forEach((img, i) => {
                             img.displayOrder = i;
                           });
+                          // Ensure first image is primary if no primary exists
+                          if (!updated.some(img => img.is_primary)) {
+                            updated[0].is_primary = true;
+                          }
                           setProductImages(updated);
                           toast.success("Image order updated");
                         }}
@@ -286,6 +317,10 @@ export function ProductImages() {
                           updated.forEach((img, i) => {
                             img.displayOrder = i;
                           });
+                          // Ensure first image is primary if no primary exists
+                          if (!updated.some(img => img.is_primary)) {
+                            updated[0].is_primary = true;
+                          }
                           setProductImages(updated);
                           toast.success("Image order updated");
                         }}
@@ -293,6 +328,20 @@ export function ProductImages() {
                         title="Move down"
                       >
                         <MoveDown className="h-4 w-4" />
+                      </Button>
+                    )}
+
+                    {/* Set as Primary */}
+                    {!image.is_primary && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setImageAsPrimary(index)}
+                        className="h-10 w-10 p-0 bg-white/90 hover:bg-yellow-500 hover:text-black"
+                        title="Set as primary image"
+                      >
+                        <Star className="h-4 w-4" />
                       </Button>
                     )}
 
@@ -311,7 +360,15 @@ export function ProductImages() {
                             await deleteImageFromDatabase(image.dbImageId);
                           }
 
+                          const wasPrimary = image.is_primary;
                           const updated = productImages.filter((_, i) => i !== index);
+
+                          // If we deleted the primary image and there are remaining images,
+                          // set the first remaining image as primary
+                          if (wasPrimary && updated.length > 0) {
+                            updated[0].is_primary = true;
+                          }
+
                           // Update display order
                           updated.forEach((img, i) => {
                             img.displayOrder = i;

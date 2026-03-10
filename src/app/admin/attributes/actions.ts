@@ -157,3 +157,149 @@ export async function reorderAttributeValues(
     };
   }
 }
+
+export async function toggleMaterialAttributeRelationship(
+  material_id: string,
+  attribute_value_id: string,
+  enabled: boolean
+) {
+  try {
+    if (enabled) {
+      await prisma.material_attribute_relationships.upsert({
+        where: {
+          material_id_attribute_value_id: {
+            material_id,
+            attribute_value_id,
+          },
+        },
+        update: {},
+        create: {
+          material_id,
+          attribute_value_id,
+        },
+      });
+    } else {
+      await prisma.material_attribute_relationships.deleteMany({
+        where: {
+          material_id,
+          attribute_value_id,
+        },
+      });
+    }
+
+    revalidatePath("/admin/attributes");
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error in toggleMaterialAttributeRelationship:", error);
+    return {
+      success: false,
+      error: error.message || "An unexpected error occurred",
+    };
+  }
+}
+
+export async function getMaterialAttributeData() {
+  try {
+    // Fetch materials
+    const materials = await prisma.product_attribute_values.findMany({
+      where: {
+        product_attributes: {
+          name: "material",
+        },
+      },
+      select: {
+        id: true,
+        value: true,
+        display_name: true,
+        display_order: true,
+        product_attributes: {
+          select: {
+            id: true,
+            name: true,
+            display_name: true,
+          },
+        },
+      },
+      orderBy: {
+        display_order: "asc",
+      },
+    });
+
+    // Fetch sizes
+    const sizes = await prisma.product_attribute_values.findMany({
+      where: {
+        product_attributes: {
+          name: "size",
+        },
+      },
+      select: {
+        id: true,
+        value: true,
+        display_name: true,
+        display_order: true,
+        attribute_id: true,
+        product_attributes: {
+          select: {
+            id: true,
+            name: true,
+            display_name: true,
+          },
+        },
+      },
+      orderBy: {
+        display_order: "asc",
+      },
+    });
+
+    // Fetch thicknesses
+    const thicknesses = await prisma.product_attribute_values.findMany({
+      where: {
+        product_attributes: {
+          name: "thickness",
+        },
+      },
+      select: {
+        id: true,
+        value: true,
+        display_name: true,
+        display_order: true,
+        attribute_id: true,
+        product_attributes: {
+          select: {
+            id: true,
+            name: true,
+            display_name: true,
+          },
+        },
+      },
+      orderBy: {
+        display_order: "asc",
+      },
+    });
+
+    // Fetch relationships
+    const relationships = await prisma.material_attribute_relationships.findMany({
+      select: {
+        id: true,
+        material_id: true,
+        attribute_value_id: true,
+      },
+    });
+
+    return {
+      success: true,
+      data: {
+        materials,
+        sizes,
+        thicknesses,
+        relationships,
+      },
+    };
+  } catch (error: any) {
+    console.error("Error in getMaterialAttributeData:", error);
+    return {
+      success: false,
+      error: error.message || "An unexpected error occurred",
+    };
+  }
+}

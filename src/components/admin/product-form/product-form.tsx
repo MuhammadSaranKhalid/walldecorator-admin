@@ -53,7 +53,7 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
         ),
         product_images (
           id, storage_path, thumbnail_path, medium_path, large_path,
-          alt_text, display_order, blurhash, processing_status
+          alt_text, display_order, blurhash, processing_status, is_primary
         )
       `,
     },
@@ -111,39 +111,44 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
     if (isEditMode && existingProduct) {
       const product = existingProduct as any;
 
-      const images = product.product_images && product.product_images.length > 0
-        ? product.product_images
-          .sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))
-          .map((img: any, index: number) => {
-            const rawPath = img.thumbnail_path || img.medium_path || img.large_path || img.storage_path;
-
-            let fullUrl = "";
-            if (rawPath) {
-              if (rawPath.startsWith("http")) {
-                fullUrl = rawPath;
-              } else {
-                const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-                const cleanPath = rawPath.startsWith("/") ? rawPath.substring(1) : rawPath;
-                fullUrl = supabaseUrl ? `${supabaseUrl}/storage/v1/object/public/product-images/${cleanPath}` : rawPath;
-              }
-            }
-
-            return {
-              url: fullUrl,
-              uploadedUrl: img.storage_path || undefined,
-              thumbnailPath: img.thumbnail_path || undefined,
-              mediumPath: img.medium_path || undefined,
-              largePath: img.large_path || undefined,
-              storage_path: img.storage_path || undefined,
-              blurhash: img.blurhash || undefined,
-              altText: img.alt_text || undefined,
-              displayOrder: img.display_order || index,
-              isUploading: false,
-              dbImageId: img.id,
-              is_primary: img.is_primary ?? false,
-            };
-          })
+      const sortedImages = product.product_images && product.product_images.length > 0
+        ? product.product_images.sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))
         : [];
+
+      const images = sortedImages.map((img: any, index: number) => {
+        const rawPath = img.thumbnail_path || img.medium_path || img.large_path || img.storage_path;
+
+        let fullUrl = "";
+        if (rawPath) {
+          if (rawPath.startsWith("http")) {
+            fullUrl = rawPath;
+          } else {
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+            const cleanPath = rawPath.startsWith("/") ? rawPath.substring(1) : rawPath;
+            fullUrl = supabaseUrl ? `${supabaseUrl}/storage/v1/object/public/product-images/${cleanPath}` : rawPath;
+          }
+        }
+
+        return {
+          url: fullUrl,
+          uploadedUrl: img.storage_path || undefined,
+          thumbnailPath: img.thumbnail_path || undefined,
+          mediumPath: img.medium_path || undefined,
+          largePath: img.large_path || undefined,
+          storage_path: img.storage_path || undefined,
+          blurhash: img.blurhash || undefined,
+          altText: img.alt_text || undefined,
+          displayOrder: img.display_order || index,
+          isUploading: false,
+          dbImageId: img.id,
+          is_primary: img.is_primary ?? (index === 0), // First image is primary by default
+        };
+      });
+
+      // Ensure at least one image is marked as primary if images exist
+      if (images.length > 0 && !images.some((img: any) => img.is_primary)) {
+        images[0].is_primary = true;
+      }
 
       reset({
         name: product.name || "",

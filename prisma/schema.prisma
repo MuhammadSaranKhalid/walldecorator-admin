@@ -273,18 +273,31 @@ model payments {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model product_attribute_values {
-  id                                                                       String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  attribute_id                                                             String             @db.Uuid
-  value                                                                    String
-  display_name                                                             String
-  display_order                                                            Int?               @default(0)
-  created_at                                                               DateTime           @default(now()) @db.Timestamptz(6)
-  product_attributes                                                       product_attributes @relation(fields: [attribute_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  product_variants_product_variants_material_idToproduct_attribute_values  product_variants[] @relation("product_variants_material_idToproduct_attribute_values")
-  product_variants_product_variants_size_idToproduct_attribute_values      product_variants[] @relation("product_variants_size_idToproduct_attribute_values")
-  product_variants_product_variants_thickness_idToproduct_attribute_values product_variants[] @relation("product_variants_thickness_idToproduct_attribute_values")
+  id                                                                            String                             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  attribute_id                                                                  String                             @db.Uuid
+  value                                                                         String
+  display_name                                                                  String
+  display_order                                                                 Int?                               @default(0)
+  created_at                                                                    DateTime                           @default(now()) @db.Timestamptz(6)
+  product_attributes                                                            product_attributes                 @relation(fields: [attribute_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  product_variants_product_variants_material_idToproduct_attribute_values       product_variants[]                 @relation("product_variants_material_idToproduct_attribute_values")
+  product_variants_product_variants_size_idToproduct_attribute_values           product_variants[]                 @relation("product_variants_size_idToproduct_attribute_values")
+  product_variants_product_variants_thickness_idToproduct_attribute_values      product_variants[]                 @relation("product_variants_thickness_idToproduct_attribute_values")
+  material_attribute_relationships_material_idToproduct_attribute_values        material_attribute_relationships[] @relation("material_attribute_relationships_material_idToproduct_attribute_values")
+  material_attribute_relationships_attribute_value_idToproduct_attribute_values material_attribute_relationships[] @relation("material_attribute_relationships_attribute_value_idToproduct_attribute_values")
 
   @@unique([attribute_id, value])
+}
+
+model material_attribute_relationships {
+  id                                                                    String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  material_id                                                           String                   @db.Uuid
+  attribute_value_id                                                    String                   @db.Uuid
+  created_at                                                            DateTime?                @default(now()) @db.Timestamptz(6)
+  product_attribute_values_material_idToproduct_attribute_values        product_attribute_values @relation("material_attribute_relationships_material_idToproduct_attribute_values", fields: [material_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  product_attribute_values_attribute_value_idToproduct_attribute_values product_attribute_values @relation("material_attribute_relationships_attribute_value_idToproduct_attribute_values", fields: [attribute_value_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([material_id, attribute_value_id])
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
