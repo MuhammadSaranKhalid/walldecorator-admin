@@ -37,7 +37,18 @@ export const formSchema = z.object({
         quantity_available: z.number().int().optional(),
       }),
     })
-  ).min(1, "Add at least one variant"),
+  ).min(1, "Add at least one variant")
+  .refine(
+    (variants) => {
+      // Check for duplicate variant combinations
+      const combinations = variants.map(v => `${v.material_id}-${v.size_id}-${v.thickness_id}`);
+      const uniqueCombinations = new Set(combinations);
+      return combinations.length === uniqueCombinations.size;
+    },
+    {
+      message: "Duplicate variant combinations are not allowed. Each material, size, and thickness combination must be unique.",
+    }
+  ),
 
   // Product Images
   images: z.array(

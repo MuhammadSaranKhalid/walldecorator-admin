@@ -125,60 +125,96 @@ export function ProductVariants() {
     });
   };
 
+  // Check if a specific size + thickness combo is used
+  const isCombinationUsed = (currentIndex: number, materialId: string, sizeId: string, thicknessId: string) => {
+    if (!materialId || !sizeId || !thicknessId) return false;
+
+    return fields.some((field, index) => {
+      if (index === currentIndex) return false;
+      const variant = watch(`variants.${index}`);
+      return (
+        variant.material_id === materialId &&
+        variant.size_id === sizeId &&
+        variant.thickness_id === thicknessId
+      );
+    });
+  };
+
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle>Product Variants *</CardTitle>
-          <p className="text-sm text-muted-foreground mt-1">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+        <div className="space-y-1">
+          <CardTitle className="text-xl">Product Variants *</CardTitle>
+          <p className="text-sm text-muted-foreground">
             Create variants for different material, size, and thickness combinations
           </p>
         </div>
-        <Button type="button" onClick={addVariant} size="sm">
+        <Button type="button" onClick={addVariant} size="default" className="shrink-0">
           <Plus className="h-4 w-4 mr-2" />
           Add Variant
         </Button>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-5">
         {isLoading ? (
           <div className="flex items-center justify-center p-8 text-muted-foreground">
             <Loader2 className="h-6 w-6 animate-spin mr-2" />
             Loading attributes...
           </div>
         ) : fields.length === 0 ? (
-          <div className="p-8 text-center border-2 border-dashed rounded-lg text-muted-foreground">
-            <p className="text-sm">No variants added yet</p>
-            <p className="text-xs mt-1">Click "Add Variant" to create your first variant</p>
+          <div className="p-12 text-center border-2 border-dashed rounded-lg text-muted-foreground bg-muted/20">
+            <p className="text-sm font-medium">No variants added yet</p>
+            <p className="text-xs mt-2">Click "Add Variant" to create your first variant</p>
           </div>
         ) : (
           fields.map((field, index) => {
             const selectedMaterialId = watch(`variants.${index}.material_id`);
+            const selectedSizeId = watch(`variants.${index}.size_id`);
 
             // Filter sizes based on selected material
             const filteredSizes = selectedMaterialId
-              ? sizes.filter((size: any) =>
-                relationships.some((r: any) => r.material_id === selectedMaterialId && r.attribute_value_id === size.value)
-              )
+              ? sizes.filter((size: any) => {
+                // First check if size is available for this material
+                if (!relationships.some((r: any) => r.material_id === selectedMaterialId && r.attribute_value_id === size.value)) {
+                  return false;
+                }
+                // Then check if ALL thicknesses for this size are already used
+                const availableThicknesses = thicknesses.filter((t: any) => {
+                  const isRelated = relationships.some((r: any) => r.material_id === selectedMaterialId && r.attribute_value_id === t.value);
+                  const isUsed = isCombinationUsed(index, selectedMaterialId, size.value, t.value);
+                  return isRelated && !isUsed;
+                });
+                return availableThicknesses.length > 0;
+              })
               : [];
 
-            // Filter thicknesses based on selected material
+            // Filter thicknesses based on selected material and size
             const filteredThicknesses = selectedMaterialId
-              ? thicknesses.filter((thickness: any) =>
-                relationships.some((r: any) => r.material_id === selectedMaterialId && r.attribute_value_id === thickness.value)
-              )
+              ? thicknesses.filter((thickness: any) => {
+                // Check if thickness is available for this material
+                if (!relationships.some((r: any) => r.material_id === selectedMaterialId && r.attribute_value_id === thickness.value)) {
+                  return false;
+                }
+                // If a size is selected, filter out used combinations
+                if (selectedSizeId) {
+                  return !isCombinationUsed(index, selectedMaterialId, selectedSizeId, thickness.value);
+                }
+                return true;
+              })
               : [];
 
             return (
-              <div key={field.id} className="border rounded-lg p-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-semibold text-sm">
-                    Variant {index + 1}
+              <div key={field.id} className="border rounded-lg p-6 space-y-5 bg-card hover:shadow-sm transition-shadow">
+                <div className="flex items-center justify-between pb-3 border-b">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-semibold text-base">
+                      Variant {index + 1}
+                    </h4>
                     {watch(`variants.${index}.is_default`) && (
-                      <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+                      <span className="text-xs bg-primary/10 text-primary px-2.5 py-1 rounded-md font-medium">
                         Default
                       </span>
                     )}
-                  </h4>
+                  </div>
                   <Button
                     type="button"
                     variant="ghost"
@@ -186,13 +222,14 @@ export function ProductVariants() {
                     onClick={() => remove(index)}
                     disabled={fields.length === 1}
                     title="Remove variant"
+                    className="h-8 w-8"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
 
                 {/* Row 1: Attributes */}
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-4">
                   <Controller
                     name={`variants.${index}.material_id`}
                     control={control}
@@ -233,19 +270,36 @@ export function ProductVariants() {
                         <Select
                           value={controllerField.value}
                           onValueChange={controllerField.onChange}
-                          disabled={!selectedMaterialId}
+                          disabled={!selectedMaterialId || filteredSizes.length === 0}
                         >
                           <SelectTrigger aria-invalid={fieldState.invalid}>
-                            <SelectValue placeholder={selectedMaterialId ? "Select size" : "Select material first"} />
+                            <SelectValue placeholder={
+                              !selectedMaterialId
+                                ? "Select material first"
+                                : filteredSizes.length === 0
+                                  ? "No sizes available"
+                                  : "Select size"
+                            } />
                           </SelectTrigger>
                           <SelectContent>
-                            {filteredSizes.map((size) => (
-                              <SelectItem key={size.value} value={size.value}>
-                                {size.label}
-                              </SelectItem>
-                            ))}
+                            {filteredSizes.length === 0 ? (
+                              <div className="p-2 text-sm text-muted-foreground text-center">
+                                {selectedMaterialId ? "No available sizes for this material" : "No sizes configured for this material"}
+                              </div>
+                            ) : (
+                              filteredSizes.map((size) => (
+                                <SelectItem key={size.value} value={size.value}>
+                                  {size.label}
+                                </SelectItem>
+                              ))
+                            )}
                           </SelectContent>
                         </Select>
+                        {selectedMaterialId && filteredSizes.length === 0 && (
+                          <FieldDescription className="text-xs text-destructive">
+                            No sizes available for this material. Please configure relationships first.
+                          </FieldDescription>
+                        )}
                         {fieldState.error && <FieldError errors={[fieldState.error]} />}
                       </Field>
                     )}
@@ -260,19 +314,36 @@ export function ProductVariants() {
                         <Select
                           value={controllerField.value}
                           onValueChange={controllerField.onChange}
-                          disabled={!selectedMaterialId}
+                          disabled={!selectedMaterialId || filteredThicknesses.length === 0}
                         >
                           <SelectTrigger aria-invalid={fieldState.invalid}>
-                            <SelectValue placeholder={selectedMaterialId ? "Select thickness" : "Select material first"} />
+                            <SelectValue placeholder={
+                              !selectedMaterialId
+                                ? "Select material first"
+                                : filteredThicknesses.length === 0
+                                  ? "No thicknesses available"
+                                  : "Select thickness"
+                            } />
                           </SelectTrigger>
                           <SelectContent>
-                            {filteredThicknesses.map((thickness) => (
-                              <SelectItem key={thickness.value} value={thickness.value}>
-                                {thickness.label}
-                              </SelectItem>
-                            ))}
+                            {filteredThicknesses.length === 0 ? (
+                              <div className="p-2 text-sm text-muted-foreground text-center">
+                                {selectedMaterialId ? "No available thicknesses for this material" : "No thicknesses configured for this material"}
+                              </div>
+                            ) : (
+                              filteredThicknesses.map((thickness) => (
+                                <SelectItem key={thickness.value} value={thickness.value}>
+                                  {thickness.label}
+                                </SelectItem>
+                              ))
+                            )}
                           </SelectContent>
                         </Select>
+                        {selectedMaterialId && filteredThicknesses.length === 0 && (
+                          <FieldDescription className="text-xs text-destructive">
+                            No thicknesses available for this material. Please configure relationships first.
+                          </FieldDescription>
+                        )}
                         {fieldState.error && <FieldError errors={[fieldState.error]} />}
                       </Field>
                     )}
@@ -280,7 +351,7 @@ export function ProductVariants() {
                 </div>
 
                 {/* Row 2: Pricing */}
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-4">
                   <Controller
                     name={`variants.${index}.price`}
                     control={control}
@@ -321,7 +392,7 @@ export function ProductVariants() {
                             )
                           }
                         />
-                        <FieldDescription className="text-xs">
+                        <FieldDescription className="text-xs text-muted-foreground">
                           Original price (for showing discounts)
                         </FieldDescription>
                         {fieldState.error && <FieldError errors={[fieldState.error]} />}
@@ -348,7 +419,7 @@ export function ProductVariants() {
                             )
                           }
                         />
-                        <FieldDescription className="text-xs">
+                        <FieldDescription className="text-xs text-muted-foreground">
                           Your cost (for profit tracking)
                         </FieldDescription>
                         {fieldState.error && <FieldError errors={[fieldState.error]} />}
@@ -358,7 +429,7 @@ export function ProductVariants() {
                 </div>
 
                 {/* Row 3: Inventory */}
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-4">
                   <Controller
                     name={`variants.${index}.inventory.quantity_on_hand`}
                     control={control}
@@ -376,7 +447,7 @@ export function ProductVariants() {
                             controllerField.onChange(parseInt(e.target.value) || 0)
                           }
                         />
-                        <FieldDescription className="text-xs">
+                        <FieldDescription className="text-xs text-muted-foreground">
                           Available units in stock
                         </FieldDescription>
                         {fieldState.error && <FieldError errors={[fieldState.error]} />}
@@ -401,7 +472,7 @@ export function ProductVariants() {
                             controllerField.onChange(parseInt(e.target.value) || 5)
                           }
                         />
-                        <FieldDescription className="text-xs">
+                        <FieldDescription className="text-xs text-muted-foreground">
                           Alert when stock falls below this
                         </FieldDescription>
                         {fieldState.error && <FieldError errors={[fieldState.error]} />}
@@ -432,16 +503,16 @@ export function ProductVariants() {
 
                 {/* Display reserved/available stock for existing variants */}
                 {watch(`variants.${index}.inventory.quantity_reserved`) !== undefined && (
-                  <div className="grid grid-cols-2 gap-3 p-3 bg-muted/50 rounded-md">
+                  <div className="grid grid-cols-2 gap-4 px-4 py-3 bg-muted/30 rounded-lg border border-border/50">
                     <div className="text-sm">
-                      <span className="text-muted-foreground">Reserved: </span>
-                      <span className="font-medium">
+                      <span className="text-muted-foreground font-medium">Reserved:</span>
+                      <span className="ml-2 font-semibold">
                         {watch(`variants.${index}.inventory.quantity_reserved`) || 0}
                       </span>
                     </div>
                     <div className="text-sm">
-                      <span className="text-muted-foreground">Available: </span>
-                      <span className="font-medium">
+                      <span className="text-muted-foreground font-medium">Available:</span>
+                      <span className="ml-2 font-semibold">
                         {watch(`variants.${index}.inventory.quantity_available`) || 0}
                       </span>
                     </div>
@@ -453,8 +524,9 @@ export function ProductVariants() {
                   name={`variants.${index}.is_default`}
                   control={control}
                   render={({ field: controllerField }) => (
-                    <div className="flex flex-row items-start space-x-3">
+                    <div className="flex flex-row items-start space-x-3 pt-2 border-t">
                       <Checkbox
+                        id={`variant-${index}-default`}
                         checked={controllerField.value || false}
                         onCheckedChange={(checked) => {
                           // Uncheck all other variants
@@ -469,12 +541,15 @@ export function ProductVariants() {
                         }}
                       />
                       <div className="space-y-1 leading-none">
-                        <FieldLabel className="cursor-pointer">
+                        <label
+                          htmlFor={`variant-${index}-default`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                        >
                           Set as default variant
-                        </FieldLabel>
-                        <FieldDescription>
+                        </label>
+                        <p className="text-xs text-muted-foreground">
                           This variant will be shown by default on the product page
-                        </FieldDescription>
+                        </p>
                       </div>
                     </div>
                   )}
