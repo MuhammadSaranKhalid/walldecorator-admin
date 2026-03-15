@@ -13,38 +13,38 @@ const statusConfig: Record<string, {
 }> = {
   pending: {
     label: "Pending",
-    className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300",
+    className: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400",
     dotColor: "bg-yellow-500",
   },
   confirmed: {
     label: "Confirmed",
-    className: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-300",
+    className: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-400",
     dotColor: "bg-cyan-500",
   },
   processing: {
     label: "Processing",
-    className: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300",
+    className: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
     dotColor: "bg-blue-500",
   },
   shipped: {
     label: "Shipped",
-    className: "bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300",
+    className: "bg-purple-500/10 text-purple-700 dark:text-purple-400",
     dotColor: "bg-purple-500",
   },
   delivered: {
     label: "Delivered",
-    className: "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300",
+    className: "bg-green-500/10 text-green-700 dark:text-green-400",
     dotColor: "bg-green-500",
   },
   cancelled: {
     label: "Cancelled",
-    className: "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300",
-    dotColor: "bg-red-500",
+    className: "bg-destructive/10 text-destructive",
+    dotColor: "bg-destructive",
   },
   refunded: {
     label: "Refunded",
-    className: "bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300",
-    dotColor: "bg-orange-500",
+    className: "bg-primary/10 text-primary",
+    dotColor: "bg-primary",
   },
 };
 

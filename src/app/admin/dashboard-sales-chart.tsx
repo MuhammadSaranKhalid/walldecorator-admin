@@ -25,7 +25,7 @@ export async function DashboardSalesChart({
             <p className="text-[32px] font-bold">
               Rs. {stats.monthRevenue.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
-            <p className={`text-base font-medium pb-1 flex items-center gap-1 ${stats.monthRevenueChange >= 0 ? 'text-green-600' : 'text-red-600'
+            <p className={`text-base font-medium pb-1 flex items-center gap-1 ${stats.monthRevenueChange >= 0 ? 'text-green-600 dark:text-green-400' : 'text-destructive'
               }`}>
               {stats.monthRevenueChange >= 0 ? (
                 <TrendingUp className="h-4 w-4" />

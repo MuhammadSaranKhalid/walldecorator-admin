@@ -47,7 +47,8 @@ const formSchema = z.object({
     slug: z.string().min(2, "Slug must be at least 2 characters"),
     description: z.string().optional(),
     parent_id: z.string().uuid().nullable().optional().or(z.literal("")),
-    image_path: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+    image_path: z.string().optional().or(z.literal("")),
+    image_id: z.string().uuid().nullable().optional(),
     display_order: z.coerce.number().int().min(0, "Order must be non-negative"),
     is_visible: z.boolean().default(true),
     seo_title: z.string().optional(),
@@ -87,6 +88,7 @@ export function CategoryForm({ mode, categoryId, defaultParentId }: CategoryForm
             description: "",
             parent_id: defaultParentId || "",
             image_path: "",
+            image_id: null,
             display_order: 0,
             is_visible: true,
             seo_title: "",
@@ -124,7 +126,8 @@ export function CategoryForm({ mode, categoryId, defaultParentId }: CategoryForm
                         slug: category.slug,
                         description: category.description || "",
                         parent_id: category.parent_id || "",
-                        image_path: category.image_path || "",
+                        image_path: (category as any).images?.storage_path || category.image_path || "",
+                        image_id: category.image_id || null,
                         display_order: category.display_order || 0,
                         is_visible: category.is_visible ?? true,
                         seo_title: category.seo_title || "",
@@ -172,7 +175,8 @@ export function CategoryForm({ mode, categoryId, defaultParentId }: CategoryForm
                 .from("product-images")
                 .getPublicUrl(filePath);
 
-            setValue("image_path", data.publicUrl);
+            setValue("image_path", filePath);
+            setValue("image_id", null); // Clear image_id because this is a new upload
             toast.success("Image uploaded successfully");
         } catch (error: any) {
             console.error("Upload error:", error);
@@ -221,6 +225,7 @@ export function CategoryForm({ mode, categoryId, defaultParentId }: CategoryForm
             description: values.description || undefined,
             parent_id: parentId,
             image_path: values.image_path || null,
+            image_id: values.image_id || null,
             display_order: values.display_order,
             is_visible: values.is_visible,
             seo_title: values.seo_title || undefined,
@@ -441,7 +446,11 @@ export function CategoryForm({ mode, categoryId, defaultParentId }: CategoryForm
                                     {field.value ? (
                                         <div className="relative w-40 h-40 border rounded-md overflow-hidden group mx-auto">
                                             <Image
-                                                src={field.value}
+                                                src={
+                                                    field.value.startsWith('http')
+                                                        ? field.value
+                                                        : `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/product-images/${field.value.startsWith('/') ? field.value.substring(1) : field.value}`
+                                                }
                                                 alt="Category preview"
                                                 fill
                                                 className="object-cover"

@@ -10,6 +10,7 @@ export type CategoryFormData = {
     description?: string;
     parent_id?: string | null;
     image_path?: string | null;
+    image_id?: string | null;
     display_order: number;
     is_visible: boolean;
     seo_title?: string;
@@ -43,17 +44,37 @@ export async function createCategory(
         }
 
         // Insert category
+        const categoryId = crypto.randomUUID();
+
+        let finalImageId = null;
+        if (formData.image_path) {
+            if (formData.image_id) {
+                finalImageId = formData.image_id;
+            } else {
+                const newImage = await prisma.images.create({
+                    data: {
+                        entity_type: "category",
+                        entity_id: categoryId,
+                        storage_path: formData.image_path,
+                        processing_status: "pending"
+                    }
+                });
+                finalImageId = newImage.id;
+            }
+        }
+
         const category = await prisma.categories.create({
             data: {
+                id: categoryId,
                 name: formData.name,
                 slug: formData.slug,
                 description: formData.description || null,
                 parent_id: formData.parent_id || null,
-                image_path: formData.image_path || null,
                 display_order: formData.display_order || 0,
                 is_visible: formData.is_visible ?? true,
                 seo_title: formData.seo_title || null,
                 seo_description: formData.seo_description || null,
+                image_id: finalImageId
             },
         });
 
@@ -97,6 +118,24 @@ export async function updateCategory(
         }
 
         // Update category
+        // Handle image creation separately if needed
+        let finalImageId = null;
+        if (formData.image_path) {
+            if (formData.image_id) {
+                finalImageId = formData.image_id;
+            } else {
+                const newImage = await prisma.images.create({
+                    data: {
+                        entity_type: "category",
+                        entity_id: categoryId,
+                        storage_path: formData.image_path,
+                        processing_status: "pending"
+                    }
+                });
+                finalImageId = newImage.id;
+            }
+        }
+
         const category = await prisma.categories.update({
             where: { id: categoryId },
             data: {
@@ -104,11 +143,11 @@ export async function updateCategory(
                 slug: formData.slug,
                 description: formData.description || null,
                 parent_id: formData.parent_id || null,
-                image_path: formData.image_path || null,
                 display_order: formData.display_order || 0,
                 is_visible: formData.is_visible ?? true,
                 seo_title: formData.seo_title || null,
                 seo_description: formData.seo_description || null,
+                image_id: finalImageId
             },
         });
 
@@ -162,6 +201,7 @@ export async function getCategory(
     try {
         const category = await prisma.categories.findUnique({
             where: { id: categoryId },
+            include: { images: true }
         });
 
         if (!category) {
@@ -191,6 +231,7 @@ export async function getAllCategories(): Promise<ActionResponse<categories[]>> 
     try {
         const categories = await prisma.categories.findMany({
             orderBy: { display_order: "asc" },
+            include: { images: true }
         });
 
         return {

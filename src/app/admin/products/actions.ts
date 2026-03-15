@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import crypto from "crypto";
 
 export interface ProductVariantInput {
   material_id: string;
@@ -19,6 +20,7 @@ export interface ProductVariantInput {
 }
 
 export interface ProductImageInput {
+  dbImageId?: string;
   storage_path: string;
   thumbnail_path?: string | null;
   medium_path?: string | null;
@@ -64,9 +66,13 @@ export async function createProduct(input: CreateProductInput) {
       };
     }
 
+    // Generate product ID upfront to use it for images relation
+    const productId = crypto.randomUUID();
+
     // Create product with variants and images in a single transaction using Prisma deep insertion
     const product = await prisma.products.create({
       data: {
+        id: productId,
         name: input.name,
         slug: "",
         description: input.description || null,
@@ -99,15 +105,23 @@ export async function createProduct(input: CreateProductInput) {
         // Deep insertion: Create images with the product
         product_images: {
           create: input.images.map((image) => ({
-            storage_path: image.storage_path,
-            thumbnail_path: image.thumbnail_path || null,
-            medium_path: image.medium_path || null,
-            large_path: image.large_path || null,
             display_order: image.display_order,
-            blurhash: image.blurhash || null,
-            alt_text: image.alt_text || null,
-            processing_status: "pending",
             is_primary: image.is_primary || false,
+            images: image.dbImageId ? {
+              connect: { id: image.dbImageId }
+            } : {
+              create: {
+                entity_type: "product",
+                entity_id: productId,
+                storage_path: image.storage_path,
+                thumbnail_path: image.thumbnail_path || null,
+                medium_path: image.medium_path || null,
+                large_path: image.large_path || null,
+                blurhash: image.blurhash || null,
+                alt_text: image.alt_text || null,
+                processing_status: "pending"
+              }
+            }
           })),
         },
       },
@@ -201,17 +215,25 @@ export async function updateProduct(input: UpdateProductInput) {
         },
         // Replace all images: delete existing and create new ones
         product_images: {
-          deleteMany: {}, // Delete all existing images
+          deleteMany: {}, // Delete all existing image references
           create: input.images.map((image) => ({
-            storage_path: image.storage_path,
-            thumbnail_path: image.thumbnail_path || null,
-            medium_path: image.medium_path || null,
-            large_path: image.large_path || null,
             display_order: image.display_order,
-            blurhash: image.blurhash || null,
-            alt_text: image.alt_text || null,
-            processing_status: "pending",
             is_primary: image.is_primary || false,
+            images: image.dbImageId ? {
+              connect: { id: image.dbImageId }
+            } : {
+              create: {
+                entity_type: "product",
+                entity_id: input.id,
+                storage_path: image.storage_path,
+                thumbnail_path: image.thumbnail_path || null,
+                medium_path: image.medium_path || null,
+                large_path: image.large_path || null,
+                blurhash: image.blurhash || null,
+                alt_text: image.alt_text || null,
+                processing_status: "pending"
+              }
+            }
           })),
         },
       },

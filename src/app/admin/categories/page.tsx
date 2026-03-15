@@ -72,6 +72,9 @@ export default function CategoriesPage() {
                 },
             ]
             : [],
+        meta: {
+            select: "*, images(id, storage_path, thumbnail_path, medium_path, large_path, alt_text, processing_status)",
+        },
     });
 
 
@@ -257,10 +260,14 @@ export default function CategoriesPage() {
 
                                             {/* Category Icon */}
                                             <div className="flex-shrink-0">
-                                                {category.image_path ? (
+                                                {((category as any).images?.thumbnail_path || (category as any).images?.storage_path || category.image_path) ? (
                                                     <div className="h-10 w-10 rounded-md overflow-hidden border">
                                                         <img
-                                                            src={category.image_path}
+                                                            src={
+                                                                ((category as any).images?.thumbnail_path || (category as any).images?.storage_path || category.image_path)?.startsWith('http')
+                                                                ? ((category as any).images?.thumbnail_path || (category as any).images?.storage_path || category.image_path)
+                                                                : `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/product-images/${(((category as any).images?.thumbnail_path || (category as any).images?.storage_path || category.image_path) || '').startsWith('/') ? (((category as any).images?.thumbnail_path || (category as any).images?.storage_path || category.image_path) || '').substring(1) : ((category as any).images?.thumbnail_path || (category as any).images?.storage_path || category.image_path)}`
+                                                            }
                                                             alt={category.name}
                                                             className="h-full w-full object-cover"
                                                         />

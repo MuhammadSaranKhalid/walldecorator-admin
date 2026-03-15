@@ -18,6 +18,7 @@ export default async function CustomOrderDetailPage({
 
     const order = await prisma.custom_orders.findUnique({
         where: { id: p.id },
+        include: { images: true }
     });
 
     if (!order) {
@@ -30,7 +31,10 @@ export default async function CustomOrderDetailPage({
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
     const bucketName = "custom-orders";
 
-    let imageUrl = order.image_url;
+    // Allow looking up from the new images relation if available
+    let rawImageUrl = order.images?.storage_path || order.image_url;
+    let imageUrl = rawImageUrl;
+
     if (!imageUrl.startsWith("http")) {
         imageUrl = `${supabaseUrl}/storage/v1/object/public/${bucketName}/${imageUrl}`;
     }

@@ -52,8 +52,10 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
           )
         ),
         product_images (
-          id, storage_path, thumbnail_path, medium_path, large_path,
-          alt_text, display_order, blurhash, processing_status, is_primary
+          product_id, image_id, display_order, is_primary, images (
+            id, storage_path, thumbnail_path, medium_path, large_path,
+            alt_text, blurhash, processing_status
+          )
         )
       `,
     },
@@ -116,7 +118,8 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
         : [];
 
       const images = sortedImages.map((img: any, index: number) => {
-        const rawPath = img.thumbnail_path || img.medium_path || img.large_path || img.storage_path;
+        const imgData = img.images || {};
+        const rawPath = imgData.thumbnail_path || imgData.medium_path || imgData.large_path || imgData.storage_path;
 
         let fullUrl = "";
         if (rawPath) {
@@ -131,16 +134,16 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
 
         return {
           url: fullUrl,
-          uploadedUrl: img.storage_path || undefined,
-          thumbnailPath: img.thumbnail_path || undefined,
-          mediumPath: img.medium_path || undefined,
-          largePath: img.large_path || undefined,
-          storage_path: img.storage_path || undefined,
-          blurhash: img.blurhash || undefined,
-          altText: img.alt_text || undefined,
+          uploadedUrl: imgData.storage_path || undefined,
+          thumbnailPath: imgData.thumbnail_path || undefined,
+          mediumPath: imgData.medium_path || undefined,
+          largePath: imgData.large_path || undefined,
+          storage_path: imgData.storage_path || undefined,
+          blurhash: imgData.blurhash || undefined,
+          altText: imgData.alt_text || undefined,
           displayOrder: img.display_order || index,
           isUploading: false,
-          dbImageId: img.id,
+          dbImageId: imgData.id || img.id, // Fallback to img.id for safety, but expect imgData.id
           is_primary: img.is_primary ?? (index === 0), // First image is primary by default
         };
       });
@@ -201,6 +204,7 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
         large_path: image.largePath,
         alt_text: image.altText,
         is_primary: image.is_primary ?? (i === 0),
+        dbImageId: image.dbImageId,
       }));
 
       const { variants, images, ...productData } = values;

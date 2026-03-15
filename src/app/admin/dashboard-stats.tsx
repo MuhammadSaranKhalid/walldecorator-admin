@@ -59,7 +59,7 @@ export async function DashboardStats({
             <CardContent>
               <div className="text-2xl font-bold">{stat.value}</div>
               <p
-                className={`text-xs font-medium mt-1 flex items-center gap-1 ${stat.trend === "up" ? "text-emerald-600 dark:text-emerald-500" : "text-red-600 dark:text-red-500"
+                className={`text-xs font-medium mt-1 flex items-center gap-1 ${stat.trend === "up" ? "text-green-600 dark:text-green-400" : "text-destructive"
                   }`}
               >
                 {stat.trend === "up" ? (

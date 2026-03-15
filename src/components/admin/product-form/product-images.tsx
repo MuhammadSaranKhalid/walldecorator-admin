@@ -50,7 +50,7 @@ export function ProductImages() {
   // Helper function to delete image from database
   const deleteImageFromDatabase = async (imageId: string) => {
     try {
-      await supabaseBrowserClient.from('product_images').delete().eq('id', imageId);
+      await supabaseBrowserClient.from('images').delete().eq('id', imageId);
       console.log(`✓ Deleted image from database: ${imageId}`);
     } catch (error) {
       console.error('Error deleting image from database:', error);
@@ -260,7 +260,7 @@ export function ProductImages() {
 
                   {/* Primary Image Badge */}
                   {image.is_primary && !image.isUploading && (
-                    <div className="absolute bottom-2 left-2 bg-yellow-500 text-black px-2 py-1 rounded text-xs font-semibold flex items-center gap-1">
+                    <div className="absolute bottom-2 left-2 bg-primary text-primary-foreground px-2 py-1 rounded text-xs font-semibold flex items-center gap-1">
                       <Star className="h-3 w-3 fill-current" />
                       Primary
                     </div>
@@ -268,7 +268,7 @@ export function ProductImages() {
 
                   {/* Uploaded Success Badge */}
                   {image.uploadedUrl && !image.isUploading && (
-                    <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded text-xs font-semibold">
+                    <div className="absolute top-2 right-2 bg-green-500/90 dark:bg-green-600/90 text-white px-2 py-1 rounded text-xs font-semibold">
                       ✓ Uploaded
                     </div>
                   )}
@@ -338,7 +338,7 @@ export function ProductImages() {
                         size="sm"
                         variant="outline"
                         onClick={() => setImageAsPrimary(index)}
-                        className="h-10 w-10 p-0 bg-white/90 hover:bg-yellow-500 hover:text-black"
+                        className="h-10 w-10 p-0 bg-background/90 hover:bg-primary hover:text-primary-foreground"
                         title="Set as primary image"
                       >
                         <Star className="h-4 w-4" />

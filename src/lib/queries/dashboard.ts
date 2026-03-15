@@ -263,7 +263,11 @@ export async function getTopProducts(limit: number = 5) {
       total_sold: true,
       product_images: {
         where: { is_primary: true },
-        select: { storage_path: true },
+        select: { 
+          images: {
+            select: { storage_path: true }
+          }
+        },
         take: 1
       },
       product_variants: {
@@ -279,7 +283,7 @@ export async function getTopProducts(limit: number = 5) {
     name: p.name,
     slug: p.slug,
     total_sold: p.total_sold,
-    image_url: p.product_images[0]?.storage_path,
+    image_url: p.product_images[0]?.images?.storage_path,
     price: p.product_variants[0]?.price?.toNumber() || 0,
   }));
 }

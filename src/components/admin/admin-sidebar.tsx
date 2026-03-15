@@ -7,7 +7,6 @@ import {
   Package,
   ShoppingCart,
   Palette,
-  LogOut,
   BarChart3,
   Settings,
   Tags,
@@ -84,22 +83,6 @@ export function AdminSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-
-      {/* Bottom Section */}
-      <SidebarFooter>
-        <SidebarMenu>
-          {/* Logout Button */}
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <button className="w-full">
-                <LogOut className="h-5 w-5" />
-                <span className="text-sm font-medium">Logout</span>
-              </button>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-
-        </SidebarMenu>
-      </SidebarFooter>
 
       <SidebarRail />
     </Sidebar>
