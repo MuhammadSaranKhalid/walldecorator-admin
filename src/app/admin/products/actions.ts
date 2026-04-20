@@ -4,6 +4,21 @@ import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import crypto from "crypto";
 
+async function triggerWebsiteRevalidation(slug?: string) {
+  const websiteUrl = process.env.WEBSITE_URL;
+  const secret = process.env.REVALIDATE_SECRET;
+  if (!websiteUrl || !secret) return;
+
+  try {
+    const url = new URL("/api/revalidate", websiteUrl);
+    url.searchParams.set("token", secret);
+    if (slug) url.searchParams.set("slug", slug);
+    await fetch(url.toString(), { method: "POST" });
+  } catch (error) {
+    console.error("[admin] Website revalidation failed:", error);
+  }
+}
+
 export interface ProductVariantInput {
   material_id: string;
   size_id: string;
@@ -142,8 +157,8 @@ export async function createProduct(input: CreateProductInput) {
       })) || [],
     };
 
-    // Revalidate the products page
     revalidatePath("/admin/products");
+    await triggerWebsiteRevalidation();
 
     return {
       success: true,
@@ -256,9 +271,9 @@ export async function updateProduct(input: UpdateProductInput) {
       })),
     };
 
-    // Revalidate the products page
     revalidatePath("/admin/products");
     revalidatePath(`/admin/products/${input.id}`);
+    await triggerWebsiteRevalidation(product.slug);
 
     return {
       success: true,
