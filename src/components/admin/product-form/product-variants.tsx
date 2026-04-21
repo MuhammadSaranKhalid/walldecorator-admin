@@ -388,7 +388,7 @@ const VariantRow = memo(function VariantRow({
 });
 
 export function ProductVariants() {
-  const { control, setValue } = useFormContext<FormValues>();
+  const { control, setValue, formState: { errors } } = useFormContext<FormValues>();
   const { fields, append, remove } = useFieldArray({
     control,
     name: "variants",
@@ -538,13 +538,9 @@ export function ProductVariants() {
           ))
         )}
 
-        <Controller
-          name="variants"
-          control={control}
-          render={({ fieldState }) => (
-            <div>{fieldState.error && <FieldError errors={[fieldState.error]} />}</div>
-          )}
-        />
+        {errors.variants && !Array.isArray(errors.variants) && (
+          <div><FieldError errors={[errors.variants as any]} /></div>
+        )}
       </CardContent>
     </Card>
   );
