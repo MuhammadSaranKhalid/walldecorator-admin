@@ -1,6 +1,8 @@
 "use client";
 
-import { Controller, useFormContext, useFieldArray, Control, UseFormSetValue, UseFormWatch } from "react-hook-form";
+import { memo } from "react";
+import { flushSync } from "react-dom";
+import { Controller, useFormContext, useFieldArray, useWatch, Control, UseFormSetValue } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +23,6 @@ interface VariantRowProps {
   index: number;
   fieldId: string;
   control: Control<FormValues>;
-  watch: UseFormWatch<FormValues>;
   setValue: UseFormSetValue<FormValues>;
   remove: (index: number) => void;
   fieldsCount: number;
@@ -31,10 +32,9 @@ interface VariantRowProps {
   relationships: any[];
 }
 
-function VariantRow({
+const VariantRow = memo(function VariantRow({
   index,
   control,
-  watch,
   setValue,
   remove,
   fieldsCount,
@@ -43,8 +43,11 @@ function VariantRow({
   thicknesses,
   relationships,
 }: VariantRowProps) {
-  const selectedMaterialId = watch(`variants.${index}.material_id`);
-  const selectedSizeId = watch(`variants.${index}.size_id`);
+  const selectedMaterialId = useWatch({ control, name: `variants.${index}.material_id`, defaultValue: "" });
+  const selectedSizeId = useWatch({ control, name: `variants.${index}.size_id`, defaultValue: "" });
+  const isDefault = useWatch({ control, name: `variants.${index}.is_default`, defaultValue: false });
+  const quantityReserved = useWatch({ control, name: `variants.${index}.inventory.quantity_reserved`, defaultValue: undefined });
+  const quantityAvailable = useWatch({ control, name: `variants.${index}.inventory.quantity_available`, defaultValue: 0 });
 
   const isCombinationUsed = (currentIndex: number, materialId: string, sizeId: string, thicknessId: string) => {
     if (!materialId || !sizeId || !thicknessId) return false;
@@ -75,7 +78,7 @@ function VariantRow({
       <div className="flex items-center justify-between pb-3 border-b">
         <div className="flex items-center gap-2">
           <h4 className="font-semibold text-base">Variant {index + 1}</h4>
-          {watch(`variants.${index}.is_default`) && (
+          {isDefault && (
             <span className="text-xs bg-primary/10 text-primary px-2.5 py-1 rounded-md font-medium">
               Default
             </span>
@@ -85,7 +88,7 @@ function VariantRow({
           type="button"
           variant="ghost"
           size="icon"
-          onClick={() => remove(index)}
+          onClick={() => flushSync(() => remove(index))}
           disabled={fieldsCount === 1}
           title="Remove variant"
           className="h-8 w-8"
@@ -341,19 +344,15 @@ function VariantRow({
         />
       </div>
 
-      {watch(`variants.${index}.inventory.quantity_reserved`) !== undefined && (
+      {quantityReserved !== undefined && (
         <div className="grid grid-cols-2 gap-4 px-4 py-3 bg-muted/30 rounded-lg border border-border/50">
           <div className="text-sm">
             <span className="text-muted-foreground font-medium">Reserved:</span>
-            <span className="ml-2 font-semibold">
-              {watch(`variants.${index}.inventory.quantity_reserved`) || 0}
-            </span>
+            <span className="ml-2 font-semibold">{quantityReserved || 0}</span>
           </div>
           <div className="text-sm">
             <span className="text-muted-foreground font-medium">Available:</span>
-            <span className="ml-2 font-semibold">
-              {watch(`variants.${index}.inventory.quantity_available`) || 0}
-            </span>
+            <span className="ml-2 font-semibold">{quantityAvailable || 0}</span>
           </div>
         </div>
       )}
@@ -386,10 +385,10 @@ function VariantRow({
       />
     </div>
   );
-}
+});
 
 export function ProductVariants() {
-  const { control, watch, setValue } = useFormContext<FormValues>();
+  const { control, setValue } = useFormContext<FormValues>();
   const { fields, append, remove } = useFieldArray({
     control,
     name: "variants",
@@ -528,7 +527,6 @@ export function ProductVariants() {
               index={index}
               fieldId={field.id}
               control={control}
-              watch={watch}
               setValue={setValue}
               remove={remove}
               fieldsCount={fields.length}
